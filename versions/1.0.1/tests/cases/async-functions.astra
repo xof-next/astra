@@ -1,0 +1,15 @@
+async fn add(value) {
+    return value + 1;
+}
+
+pub async fn main() {
+    let pending = add(40);
+    assert(type(pending) == "promise", "async functions must return a promise");
+    assert(await pending == 41, "await must resolve an async function result");
+    assert(await add(40) + 1 == 42, "await must bind before binary operators");
+    let arrow = async (value) => await add(value);
+    assert(await arrow(40) == 41, "async arrows must preserve await semantics");
+    let nested = async (value) => await add(value) + 1;
+    assert(await nested(40) == 42, "async arrows must preserve await precedence");
+    console.log("async function execution passed");
+}

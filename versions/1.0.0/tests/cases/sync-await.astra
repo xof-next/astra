@@ -1,0 +1,12 @@
+sync fn calculate() {
+    let value = 0;
+    if (true) {
+        value = await Number(41) + 1;
+    }
+    return value;
+}
+pub sync fn main() {
+    assert(calculate() == 42, "await must work in nested sync blocks");
+    assert(type(launch) == "function", "launch module must be callable");
+    console.log("sync/await syntax and callable launch passed");
+}

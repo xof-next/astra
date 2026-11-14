@@ -1,0 +1,14 @@
+fn makeCounter() {
+    let count = 0;
+    fn next() {
+        count++;
+        return count;
+    }
+    return next;
+}
+
+pub fn main() {
+    let next = makeCounter();
+    assert(next() == 1, "first closure call failed");
+    assert(next() == 2, "closure did not retain captured state");
+}

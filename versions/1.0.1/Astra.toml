@@ -1,0 +1,8 @@
+[project]
+name = "astra-playground"
+version = "1.0.1"
+entry = "examples/hello.astra"
+
+[dependencies]
+
+[devDependencies]

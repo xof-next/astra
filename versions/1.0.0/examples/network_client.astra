@@ -1,0 +1,13 @@
+import "std:dns" as dns;
+import "std:tcp" as tcp;
+
+pub sync fn main() {
+    let addresses = await dns.resolve("localhost");
+    console.log(addresses);
+
+    // Use a known TCP service in your own environment before enabling this.
+    // const socket = tcp.connect("127.0.0.1", 9000, { timeoutMs: 5000 });
+    // socket.write("hello");
+    // console.log(socket.read(4096));
+    // socket.close();
+}

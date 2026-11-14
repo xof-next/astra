@@ -1,0 +1,4 @@
+import "std:crypto" as crypto;
+pub fn main() {
+    crypto.notARealMethod();
+}

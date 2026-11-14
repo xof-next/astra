@@ -1,0 +1,4 @@
+const launch = (url) => `local:${url}`;
+pub fn main() {
+    console.log(launch("value"));
+}

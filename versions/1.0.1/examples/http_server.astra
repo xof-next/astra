@@ -1,0 +1,28 @@
+import "std:server" as http;
+
+const app = http.create();
+
+app.get("/", (req, res) => {
+    res.send("Astra HTTP server is running");
+});
+
+app.get("/users/:id", (req, res) => {
+    res.json({ id: req.params.id, method: req.method });
+});
+
+app.post("/users", (req, res) => {
+    res.status(201);
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.json({ created: true, body: req.body });
+});
+
+app.listen(3000, {
+    host: "127.0.0.1",
+    workers: 8,
+    queueCapacity: 512,
+    backlog: 256,
+    maxRequestBytes: 1048576,
+    maxResponseBytes: 4194304,
+    maxHeaderBytes: 65536,
+    timeoutMs: 10000
+});

@@ -1,0 +1,15 @@
+# Native build output from version directories
+**/build/
+**/build-*/
+**/cmake-build-*/
+**/*.o
+**/*.obj
+**/*.exe
+**/*.dll
+**/*.so
+**/*.dylib
+**/*.new
+**/*.download
+**/*.update.cmd
+.DS_Store
+Thumbs.db

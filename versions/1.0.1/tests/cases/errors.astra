@@ -1,0 +1,5 @@
+pub fn main() {
+    let maximum = 9223372036854775807;
+    let overflow = maximum + 1;
+    console.log(overflow);
+}

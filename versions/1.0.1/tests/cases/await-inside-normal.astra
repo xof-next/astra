@@ -1,0 +1,3 @@
+pub fn main() {
+    let result = await Number(1);
+}

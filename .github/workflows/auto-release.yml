@@ -1,0 +1,350 @@
+name: Astra Release Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: astra-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Validate source and release matrix
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      version: ${{ steps.matrix.outputs.version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Validate pack manifest
+        run: python3 scripts/validate-pack.py
+
+      - name: Generate current release matrix
+        id: matrix
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path.cwd()
+          pack = json.loads((root / "pack.json").read_text(encoding="utf-8"))
+          version = pack["new"]
+          metadata = pack["versions"][version]
+          targets = {
+              "linux-x86_64": ("ubuntu-24.04", "x64-linux", "linux", ""),
+              "linux-aarch64": ("ubuntu-24.04-arm", "arm64-linux", "linux", ""),
+              "macos-x86_64": ("macos-15-intel", "x64-osx", "unix", ""),
+              "macos-aarch64": ("macos-15", "arm64-osx", "unix", ""),
+              "windows-x86_64": ("windows-2025", "x64-windows-static", "windows", "x64"),
+              "windows-aarch64": ("windows-11-arm", "arm64-windows-static", "windows", "ARM64"),
+              "android-aarch64": ("ubuntu-24.04", "arm64-android", "android", "")
+          }
+          include = []
+          for platform, asset in sorted(metadata["assets"].items()):
+              if platform not in targets:
+                  raise SystemExit(f"Unsupported release target: {platform}")
+              runner, triplet, family, cmake_arch = targets[platform]
+              include.append({
+                  "version": version,
+                  "source": metadata["path"],
+                  "status": metadata["status"],
+                  "tag": metadata["tag"],
+                  "platform": platform,
+                  "asset": asset,
+                  "runner": runner,
+                  "triplet": triplet,
+                  "family": family,
+                  "cmake_arch": cmake_arch
+              })
+          expected = set(targets)
+          if {item["platform"] for item in include} != expected:
+              raise SystemExit("The current release must define all seven supported platform assets")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as stream:
+              stream.write("version=" + version + "\n")
+              stream.write("matrix=" + json.dumps({"include": include}, separators=(",", ":")) + "\n")
+          PY
+
+  build:
+    name: Build ${{ matrix.version }} / ${{ matrix.platform }}
+    needs: prepare
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Android SDK
+        if: matrix.family == 'android'
+        uses: android-actions/setup-android@v4
+        with:
+          accept-android-sdk-licenses: true
+          log-accepted-android-sdk-licenses: false
+          packages: platform-tools
+
+      - name: Install Android NDK
+        if: matrix.family == 'android'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager --sdk_root="$ANDROID_HOME" --install "ndk;27.2.12479018"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+
+      - name: Install vcpkg and native dependencies
+        if: matrix.family == 'linux' || matrix.family == 'unix'
+        shell: bash
+        env:
+          TRIPLET: ${{ matrix.triplet }}
+        run: |
+          set -euo pipefail
+          export VCPKG_ROOT="$RUNNER_TEMP/vcpkg"
+          git clone --depth 1 https://github.com/microsoft/vcpkg "$VCPKG_ROOT"
+          "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
+          "$VCPKG_ROOT/vcpkg" install "curl[ssl]:$TRIPLET" "zlib:$TRIPLET"
+          echo "VCPKG_ROOT=$VCPKG_ROOT" >> "$GITHUB_ENV"
+
+      - name: Install vcpkg and Android dependencies
+        if: matrix.family == 'android'
+        shell: bash
+        env:
+          TRIPLET: ${{ matrix.triplet }}
+        run: |
+          set -euo pipefail
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/27.2.12479018"
+          export VCPKG_ROOT="$RUNNER_TEMP/vcpkg"
+          git clone --depth 1 https://github.com/microsoft/vcpkg "$VCPKG_ROOT"
+          "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
+          "$VCPKG_ROOT/vcpkg" install "curl[ssl]:$TRIPLET" "zlib:$TRIPLET"
+          echo "ANDROID_NDK_HOME=$ANDROID_NDK_HOME" >> "$GITHUB_ENV"
+          echo "VCPKG_ROOT=$VCPKG_ROOT" >> "$GITHUB_ENV"
+
+      - name: Install vcpkg and Windows dependencies
+        if: matrix.family == 'windows'
+        shell: pwsh
+        env:
+          TRIPLET: ${{ matrix.triplet }}
+        run: |
+          $VcpkgRoot = Join-Path $env:RUNNER_TEMP "vcpkg"
+          git clone --depth 1 https://github.com/microsoft/vcpkg $VcpkgRoot
+          & (Join-Path $VcpkgRoot "bootstrap-vcpkg.bat") -disableMetrics
+          & (Join-Path $VcpkgRoot "vcpkg.exe") install "curl[ssl]:$env:TRIPLET" "zlib:$env:TRIPLET"
+          "VCPKG_ROOT=$VcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Configure Android build
+        if: matrix.family == 'android'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake -S "${{ matrix.source }}" -B build \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET="${{ matrix.triplet }}" \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release --parallel 2
+
+      - name: Configure Unix build
+        if: matrix.family == 'linux' || matrix.family == 'unix'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake -S "${{ matrix.source }}" -B build \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET="${{ matrix.triplet }}" \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release --parallel 2
+
+      - name: Configure Windows build
+        if: matrix.family == 'windows'
+        shell: pwsh
+        run: |
+          cmake -S "${{ matrix.source }}" -B build -A "${{ matrix.cmake_arch }}" `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET="${{ matrix.triplet }}" `
+            -DCMAKE_BUILD_TYPE=Release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build build --config Release --parallel 2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run Unix test suite
+        if: matrix.family == 'linux' || matrix.family == 'unix'
+        shell: bash
+        run: ctest --test-dir build --output-on-failure --timeout 60
+
+      - name: Smoke test Windows build
+        if: matrix.family == 'windows'
+        shell: pwsh
+        run: |
+          $Binary = Join-Path $PWD "build/Release/astra.exe"
+          if (!(Test-Path $Binary)) { throw "Astra executable was not produced" }
+          & $Binary --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $Binary modules
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $Binary check "${{ matrix.source }}/examples/hello.astra"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify Android ELF target
+        if: matrix.family == 'android'
+        shell: bash
+        run: |
+          set -euo pipefail
+          binary="$(find build -type f -name astra -print -quit)"
+          test -n "$binary"
+          readelf -h "$binary" | grep -q 'Class:.*ELF64'
+          readelf -h "$binary" | grep -q 'Machine:.*AArch64'
+          readelf -l "$binary" | grep -q '/system/bin/linker64'
+
+      - name: Prepare release asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          if [ "${{ matrix.family }}" = "windows" ]; then
+            binary="$(find build -type f -name astra.exe -print -quit)"
+          else
+            binary="$(find build -type f -name astra -print -quit)"
+          fi
+          test -n "$binary"
+          cp "$binary" "dist/${{ matrix.asset }}"
+          test -s "dist/${{ matrix.asset }}"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: astra-${{ matrix.version }}-${{ matrix.platform }}
+          path: dist/${{ matrix.asset }}
+          if-no-files-found: error
+          retention-days: 2
+
+  publish:
+    name: Publish current version release
+    needs:
+      - prepare
+      - build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Download current version builds
+        uses: actions/download-artifact@v4
+        with:
+          pattern: astra-${{ needs.prepare.outputs.version }}-*
+          path: artifacts
+          merge-multiple: false
+
+      - name: Assemble release assets and checksums
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          import shutil
+          from pathlib import Path
+
+          root = Path.cwd()
+          pack = json.loads((root / "pack.json").read_text(encoding="utf-8"))
+          version = os.environ["RELEASE_VERSION"]
+          metadata = pack["versions"][version]
+          artifacts = root / "artifacts"
+          destination = root / "release" / version
+          destination.mkdir(parents=True, exist_ok=True)
+          checksums = []
+          for platform, asset in sorted(metadata["assets"].items()):
+              source = artifacts / f"astra-{version}-{platform}" / asset
+              if not source.is_file():
+                  raise SystemExit(f"Missing build artifact: {source}")
+              target = destination / asset
+              shutil.copy2(source, target)
+              digest = hashlib.sha256(target.read_bytes()).hexdigest()
+              checksums.append(f"{digest}  {asset}")
+          (destination / "SHA256SUMS.txt").write_text("\n".join(checksums) + "\n", encoding="utf-8")
+          PY
+
+      - name: Create commit issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          COMMIT_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          SHORT_SHA="${COMMIT_SHA:0:7}"
+          COMMIT_MESSAGE="$(git log -1 --format=%B "$COMMIT_SHA")"
+          COMMIT_AUTHOR="$(git log -1 --format='%an' "$COMMIT_SHA")"
+          COMMIT_URL="https://github.com/$GH_REPO/commit/$COMMIT_SHA"
+          EXISTING="$(gh issue list --repo "$GH_REPO" --state all --limit 200 --json number,body --jq "first(.[] | select(.body != null) | select(.body | contains(\"<!-- astra-commit:$COMMIT_SHA -->\")) | .number) // empty")"
+          if [ -z "$EXISTING" ]; then
+            cat > issue.md <<EOF
+          <!-- astra-commit:$COMMIT_SHA -->
+
+          ## Astra commit detected
+
+          A new commit has been detected in the Astra repository.
+
+          - **Commit:** [\`$SHORT_SHA\`]($COMMIT_URL)
+          - **Author:** $COMMIT_AUTHOR
+          - **Branch:** main
+
+          ### Commit message
+
+          \`\`\`text
+          $COMMIT_MESSAGE
+          \`\`\`
+
+          This issue was automatically generated by Astra GitHub Actions.
+          EOF
+            gh issue create --repo "$GH_REPO" --title "[Astra Commit] $SHORT_SHA" --body-file issue.md
+          fi
+
+      - name: Publish current version release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          COMMIT_SHA: ${{ github.sha }}
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="$(python3 -c 'import json,os; print(json.load(open("pack.json"))["versions"][os.environ["RELEASE_VERSION"]]["tag"])')"
+          STATUS="$(python3 -c 'import json,os; print(json.load(open("pack.json"))["versions"][os.environ["RELEASE_VERSION"]]["status"])')"
+          SOURCE="$(python3 -c 'import json,os; print(json.load(open("pack.json"))["versions"][os.environ["RELEASE_VERSION"]]["path"])')"
+          TITLE="Astra $RELEASE_VERSION"
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            if [ "$STATUS" = "preview" ]; then
+              git tag -f "$TAG" "$COMMIT_SHA"
+              git push origin "refs/tags/$TAG" --force
+            else
+              if ! git diff --quiet "$TAG" "$COMMIT_SHA" -- "$SOURCE"; then
+                printf '%s\n' "The stable source changed without a version bump. Update pack.json new version and tag before publishing."
+                exit 1
+              fi
+            fi
+          fi
+          RELEASE_ID="$(gh release view "$TAG" --repo "$GH_REPO" --json databaseId --jq .databaseId 2>/dev/null || true)"
+          if [ -z "$RELEASE_ID" ]; then
+            if [ "$STATUS" = "preview" ]; then
+              gh release create "$TAG" release/"$RELEASE_VERSION"/* --repo "$GH_REPO" --target "$COMMIT_SHA" --title "$TITLE" --generate-notes --prerelease
+            else
+              gh release create "$TAG" release/"$RELEASE_VERSION"/* --repo "$GH_REPO" --target "$COMMIT_SHA" --title "$TITLE" --generate-notes
+            fi
+          else
+            gh release upload "$TAG" release/"$RELEASE_VERSION"/* --repo "$GH_REPO" --clobber
+          fi

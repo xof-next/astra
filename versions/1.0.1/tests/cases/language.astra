@@ -1,0 +1,24 @@
+import "std:math" as math;
+pub fn main() {
+    let negative = -12;
+    let exponent = 1.25e-2;
+    let values = range(1, 4);
+    values[0] = 9;
+    let big = bigint("999999999999999999999999999");
+    let builtArray = Array.from("abc");
+    let builtObject = Object({ key: "value" });
+    assert(Array.isArray(builtArray));
+    assert(Object.keys(builtObject)[0] == "key");
+    assert(Number.parseInt("42px") == 42);
+    let bigResult = (-5n % 2n) + (9n / 2n);
+    assert(10n - 12n == -2n);
+    assert(-10n - -12n == 2n);
+    assert(-10n * -5n == 50n);
+    let x = 0;
+    for (let i = 0; i < 3; i++) {
+        x += i;
+    }
+    if (!false && x == 3) {
+        console.log("language", negative, exponent, values.length, values[0], Number("42"), float("3.5"), String(9), big, bigResult);
+    }
+}

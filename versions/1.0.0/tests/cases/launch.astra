@@ -1,0 +1,44 @@
+import "std:json" as json;
+import "std:env" as env;
+import "std:testing" as testing;
+import "std:string" as text;
+
+pub fn main() {
+    let base = env.get("ASTRA_HTTP_TEST_URL");
+    let response = launch.get(base + "/get");
+    testing.assert(response.status == 200);
+    testing.assert(response.ok == true);
+    testing.assert(text.contains(response.headers["content-type"], "application/json"));
+    let data = json.parse(response.body);
+    testing.assert(data.method == "GET");
+    let customHeaders = launch.get(base + "/get", { headers: { "X-Astra-Test": "enabled" } });
+    testing.assert(json.parse(customHeaders.body).testHeader == "enabled");
+    let redirected = launch.get(base + "/redirect");
+    testing.assert(redirected.status == 200);
+    testing.assert(redirected.redirected == true);
+    let missing = launch.get(base + "/missing");
+    testing.assert(missing.status == 404);
+    testing.assert(missing.ok == false);
+    let limitTriggered = false;
+    try {
+        launch.get(base + "/large", { maxResponseBytes: 4 });
+    } catch (error) {
+        limitTriggered = true;
+    }
+    testing.assert(limitTriggered);
+    let post = launch.post(base + "/post", "{\"astra\":true}", { headers: { "Content-Type": "application/json" } });
+    testing.assert(post.status == 201);
+    testing.assert(json.parse(post.body).received == "{\"astra\":true}");
+    let put = launch.put(base + "/put", "put-body");
+    testing.assert(json.parse(put.body).method == "PUT");
+    let patch = launch.patch(base + "/patch", "patch-body");
+    testing.assert(json.parse(patch.body).method == "PATCH");
+    let deleted = launch.delete(base + "/delete");
+    testing.assert(deleted.status == 202);
+    let options = launch.options(base + "/options");
+    testing.assert(options.status == 204);
+    let requested = launch.request(base + "/post", { method: "POST", body: "request-body" });
+    testing.assert(json.parse(requested.body).received == "request-body");
+    let head = launch.head(base + "/head");
+    testing.assert(head.status == 200);
+}

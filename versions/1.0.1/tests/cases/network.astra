@@ -1,0 +1,12 @@
+import "std:dns" as dns;
+
+pub async fn main() {
+    assert(dns.isIP("127.0.0.1") == 4);
+    assert(dns.isIP("::1") == 6);
+    assert(dns.isIP("not-an-ip") == 0);
+    let local = await dns.lookup("localhost");
+    assert(type(local.address) == "string");
+    let all = await dns.resolve("localhost");
+    assert(len(all) >= 1);
+    console.log("DNS standard module passed");
+}

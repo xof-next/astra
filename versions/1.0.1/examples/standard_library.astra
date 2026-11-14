@@ -1,0 +1,24 @@
+import "std:crypto" as crypto;
+import "std:json" as json;
+import "std:math" as math;
+import "std:string" as text;
+import "std:array" as arrays;
+import "std:date" as date;
+
+pub fn main() {
+    const message = "Astra Script";
+    let items = [3, 1, 2];
+
+    arrays.sort(items);
+    console.log("upper:", text.upper(message));
+    console.log("sorted:", json.stringify(items));
+    console.log("sqrt:", math.sqrt(144));
+    console.log("sha256:", crypto.sha256(message));
+    console.log("UTC date:", date.toISOString(date.now()));
+
+    let counter = 0;
+    for (let i = 0; i < 3; i++) {
+        counter += i;
+    }
+    console.log("counter:", counter);
+}

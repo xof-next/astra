@@ -1,0 +1,25 @@
+import "std:launch" as launch;
+import "std:tls" as tls;
+import "std:events" as events;
+import "std:json" as json;
+
+fn onRequestFinished(status, elapsed) {
+    console.info(`Request finished: ${status} in ${elapsed} ms`);
+}
+
+pub async fn main() {
+    events.on("request:finished", onRequestFinished);
+
+    console.info("TLS backend:", tls.backend());
+
+    let response = await launch.get("https://example.com", {
+        timeoutMs: 10000,
+        maxResponseBytes: 1048576,
+        headers: { "Accept": "text/html" }
+    });
+
+    events.emit("request:finished", response.status, response.elapsedMs);
+    console.log("HTTP status:", response.status);
+    console.log("Response URL:", response.url);
+    console.log("Body bytes:", response.body.length);
+}

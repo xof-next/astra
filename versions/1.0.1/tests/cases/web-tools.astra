@@ -1,0 +1,53 @@
+import "std:html" as html;
+import "std:mime" as mime;
+import "std:cookie" as cookie;
+import "std:string" as string;
+import "std:testing" as testing;
+
+pub fn main() {
+    let source = "A & <tag> \"quoted\" 'text'";
+    let escaped = html.escape(source);
+    testing.assert(escaped == "A &amp; &lt;tag&gt; &quot;quoted&quot; &#39;text&#39;");
+    testing.assert(html.unescape(escaped) == source);
+    testing.assert(html.unescape("&#x1F680;") == "🚀");
+    testing.assert(html.unescape("&unknown;") == "&unknown;");
+
+    testing.assert(mime.type("/assets/APP.JS?v=2") == "text/javascript");
+    testing.assert(mime.type("image.webp") == "image/webp");
+    testing.assert(mime.type("file.unknown") == "application/octet-stream");
+    testing.assert(mime.extension("application/json") == ".json");
+    testing.assert(mime.isText("text/plain"));
+    testing.assert(mime.isText("image/svg+xml"));
+    testing.assert(mime.isText("image/png") == false);
+
+    let parsed = cookie.parse("sid=abc%20123; theme=dark; theme=light; token=a%3Db");
+    testing.assert(parsed.sid == "abc 123");
+    testing.assert(parsed.theme.length == 2);
+    testing.assert(parsed.theme[1] == "light");
+    testing.assert(parsed.token == "a=b");
+
+    let serialized = cookie.serialize("sid", "abc 123", {
+        path: "/",
+        httpOnly: true,
+        secure: true,
+        sameSite: "None",
+        maxAge: 3600
+    });
+    testing.assert(string.contains(serialized, "sid=abc%20123"));
+    testing.assert(string.contains(serialized, "HttpOnly"));
+    testing.assert(string.contains(serialized, "Secure"));
+    testing.assert(string.contains(serialized, "SameSite=None"));
+    testing.assert(string.contains(serialized, "Max-Age=3600"));
+
+    let invalidName = false;
+    try { cookie.serialize("bad name", "x"); } catch (error) { invalidName = true; }
+    testing.assert(invalidName);
+    let invalidSameSite = false;
+    try { cookie.serialize("sid", "x", { sameSite: "None" }); } catch (error) { invalidSameSite = true; }
+    testing.assert(invalidSameSite);
+    let invalidEscape = false;
+    try { cookie.parse("sid=%Q0"); } catch (error) { invalidEscape = true; }
+    testing.assert(invalidEscape);
+
+    console.info("web standard modules passed");
+}

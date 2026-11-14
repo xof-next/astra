@@ -1,0 +1,15 @@
+import "std:server" as http;
+const app = http.create();
+app.get("/hello/:name", (req, res) => {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.json({ greeting: "hello", name: req.params.name, method: req.method });
+});
+app.post("/echo", (req, res) => {
+    res.status(201);
+    res.send(req.body);
+});
+app.route("PUT", "/replace/:id", (req, res) => {
+    res.status(202).send(req.params.id);
+});
+app.post("/large", (req, res) => res.send(req.body));
+app.listen(18765, { host: "127.0.0.1", maxRequests: 5, maxRequestBytes: 4096, maxHeaderBytes: 1024, maxResponseBytes: 2048, timeoutMs: 1000 });

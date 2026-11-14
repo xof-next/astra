@@ -1,0 +1,5 @@
+[compiler]
+name = "Astra"
+version = "1.0.0"
+standard = "C++17"
+source_extension = ".astra"

@@ -1,0 +1,35 @@
+{
+  "name": "astra",
+  "schema": 1,
+  "repository": "https://github.com/xof-next/astra",
+  "new": "1.0.1",
+  "versions": {
+    "1.0.0": {
+      "status": "stable",
+      "tag": "v1.0.0",
+      "path": "versions/1.0.0",
+      "assets": {
+        "linux-x86_64": "astra-linux-x86_64",
+        "linux-aarch64": "astra-linux-aarch64",
+        "macos-x86_64": "astra-macos-x86_64",
+        "macos-aarch64": "astra-macos-aarch64",
+        "windows-x86_64": "astra-windows-x86_64.exe",
+        "windows-aarch64": "astra-windows-aarch64.exe"
+      }
+    },
+    "1.0.1": {
+      "status": "preview",
+      "tag": "v1.0.1",
+      "path": "versions/1.0.1",
+      "assets": {
+        "linux-x86_64": "astra-linux-x86_64",
+        "linux-aarch64": "astra-linux-aarch64",
+        "macos-x86_64": "astra-macos-x86_64",
+        "macos-aarch64": "astra-macos-aarch64",
+        "windows-x86_64": "astra-windows-x86_64.exe",
+        "windows-aarch64": "astra-windows-aarch64.exe",
+        "android-aarch64": "astra-android-aarch64"
+      }
+    }
+  }
+}

@@ -1,0 +1,28 @@
+// Global module namespaces need no import and can be shadowed locally.
+const add = (a, b) => a + b;
+let triple = value => value * 3;
+const multiply = (a, b) => {
+    return a * b;
+};
+let rustStyle = |value| value + 5;
+let noArgs = || 42;
+let apply = (callback, value) => callback(value);
+
+function launch(url) {
+    return `custom:${url}`;
+}
+
+pub fn main() {
+    console.log(add(2, 3));
+    console.log(triple(4));
+    console.log(multiply(3, 4));
+    console.log(rustStyle(7));
+    console.log(noArgs());
+    console.log(apply((x) => x + 10, 5));
+    console.log(launch("override"));
+    console.log(math.max(4, 9));
+    console.log(json.stringify({ ok: true }));
+    console.log(events.listenerCount("missing"));
+    console.log(crypto.sha256("abc"));
+    console.log(tls.supported());
+}

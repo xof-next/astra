@@ -1,0 +1,8 @@
+import "std:math" as math;
+pub fn main() {
+    try {
+        math.sqrt(-1);
+    } catch (error) {
+        console.log("caught:", error.message);
+    }
+}

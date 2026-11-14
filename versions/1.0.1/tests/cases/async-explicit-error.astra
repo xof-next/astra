@@ -1,0 +1,3 @@
+async fn main() {
+    console.log("this must not silently run as sync");
+}

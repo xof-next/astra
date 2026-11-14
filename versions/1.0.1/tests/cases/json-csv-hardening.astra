@@ -1,0 +1,83 @@
+import "std:json" as json;
+import "std:csv" as csv;
+import "std:encoding" as encoding;
+import "std:math" as math;
+import "std:array" as arrays;
+import "std:testing" as testing;
+
+pub fn main() {
+    let decoded = json.parse("{\"emoji\":\"\\uD83D\\uDE80\",\"nested\":[true,null,3]}");
+    testing.assert(decoded.emoji == "🚀");
+    testing.assert(decoded.nested.length == 3);
+    testing.assert(json.stringify(json.parse("\"\\u0001\"")) == "\"\\u0001\"");
+    let cyclic = [];
+    arrays.push(cyclic, cyclic);
+    let cyclicJsonRejected = false;
+    try { json.stringify(cyclic); } catch (error) { cyclicJsonRejected = true; }
+    testing.assert(cyclicJsonRejected);
+    let cyclicStringRejected = false;
+    try { str(cyclic); } catch (error) { cyclicStringRejected = true; }
+    testing.assert(cyclicStringRejected);
+    let cyclicObject = {};
+    cyclicObject.self = cyclicObject;
+    let cyclicObjectRejected = false;
+    try { json.stringify(cyclicObject); } catch (error) { cyclicObjectRejected = true; }
+    testing.assert(cyclicObjectRejected);
+    let selfClosure = () => selfClosure;
+    testing.assert(selfClosure() == selfClosure);
+    testing.assert(json.stringify(json.parse("{\"n\":9223372036854775808}")) == "{\"n\":\"9223372036854775808\"}");
+    testing.assert(json.parse("{\"x\":1,\"x\":2}").x == 2);
+
+    let badLeadingZero = false;
+    try { json.parse("01"); } catch (error) { badLeadingZero = true; }
+    testing.assert(badLeadingZero);
+    let badFraction = false;
+    try { json.parse("1."); } catch (error) { badFraction = true; }
+    testing.assert(badFraction);
+    let badExponent = false;
+    try { json.parse("1e+"); } catch (error) { badExponent = true; }
+    testing.assert(badExponent);
+    let badSurrogate = false;
+    try { json.parse("\"\\uD800\""); } catch (error) { badSurrogate = true; }
+    testing.assert(badSurrogate);
+    let badTrailingComma = false;
+    try { json.parse("[1,]"); } catch (error) { badTrailingComma = true; }
+    testing.assert(badTrailingComma);
+
+    let rows = csv.parse("name,note\r\nA,\"line 1\r\nline 2\"\r\nB,\"a\"\"b\"");
+    testing.assert(rows.length == 3);
+    testing.assert(rows[1][1] == "line 1\r\nline 2");
+    testing.assert(rows[2][1] == "a\"b");
+    let badCsv = false;
+    try { csv.parse("name,\"unfinished"); } catch (error) { badCsv = true; }
+    testing.assert(badCsv);
+    let badCsvQuote = false;
+    try { csv.parse("ab\"cd,ef"); } catch (error) { badCsvQuote = true; }
+    testing.assert(badCsvQuote);
+
+    testing.assert(encoding.base64Decode("QXN0cmE=") == "Astra");
+    let badBase64 = false;
+    try { encoding.base64Decode("Q==="); } catch (error) { badBase64 = true; }
+    testing.assert(badBase64);
+    let badUrlEscape = false;
+    try { encoding.urlDecode("%Q0"); } catch (error) { badUrlEscape = true; }
+    testing.assert(badUrlEscape);
+    let badRound = false;
+    try { math.round(1e100); } catch (error) { badRound = true; }
+    testing.assert(badRound);
+    testing.assert(int("9223372036854775807") == 9223372036854775807);
+    testing.assert(type(Number("-9223372036854775808")) == "int");
+    testing.assert(type(Number("9223372036854775808")) == "float");
+    let unsafeIndex = false;
+    let indexTarget = [1, 2];
+    try { let invalidItem = indexTarget[1e100]; } catch (error) { unsafeIndex = true; }
+    testing.assert(unsafeIndex);
+    let fractionalIndex = false;
+    try { let invalidItem = indexTarget[1.5]; } catch (error) { fractionalIndex = true; }
+    testing.assert(fractionalIndex);
+    let integerOverflow = false;
+    try { int("9223372036854775808"); } catch (error) { integerOverflow = true; }
+    testing.assert(integerOverflow);
+
+    console.info("JSON, CSV and conversion hardening passed");
+}

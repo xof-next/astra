@@ -1,0 +1,4 @@
+pub sync fn main() {
+    let response = await launch.get("https://example.com");
+    console.log(response.status);
+}

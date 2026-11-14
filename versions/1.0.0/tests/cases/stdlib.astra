@@ -1,0 +1,63 @@
+import "std:math" as math;
+import "std:string" as text;
+import "std:array" as arrays;
+import "std:json" as json;
+import "std:encoding" as encoding;
+import "std:random" as random;
+import "std:uuid" as uuid;
+import "std:crypto" as crypto;
+import "std:object" as objects;
+import "std:date" as date;
+
+fn add(a, b) {
+    return a + b;
+}
+
+pub fn main() {
+    let total = add(10, 20);
+    console.log("sum", total);
+    console.log("sqrt", math.sqrt(81));
+    console.log(text.upper("astra script"));
+
+    let data = [1, 2, 3];
+    arrays.push(data, 4);
+    console.log("array", arrays.join(data, "-"));
+
+    let source = { name: "Astra", active: true, count: total };
+    let encoded = json.stringify(source);
+    console.log("json", encoded);
+    let decoded = json.parse(encoded);
+    console.log("name", decoded.name);
+
+    let base64 = encoding.base64Encode("Astra");
+    console.log("base64", base64, encoding.base64Decode(base64));
+
+    let big = 123456789012345678901234567890n;
+    console.log("bigint", big + 10n);
+    console.log("bigint multiplication", 999999999999999999n * 9n);
+    console.log("sha256", crypto.sha256("abc"));
+    console.log("hmac", crypto.hmacSha256("key", "message"));
+    console.log("object keys", json.stringify(objects.keys(source)));
+    console.log("date", date.toISOString(0));
+
+    let i = 0;
+    while (i < 2) {
+        console.log("while", i);
+        i++;
+    }
+
+    for (let j = 0; j < 3; j++) {
+        console.log("for", j);
+    }
+
+    let profile = { name: "Astra", active: true };
+    profile.name = "Astra Script";
+    delete profile.active;
+    console.log("profile", json.stringify(profile));
+
+    if (random.bool()) {
+        console.log("uuid", uuid.v4());
+    } else {
+        console.log("random false");
+    }
+}

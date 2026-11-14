@@ -1,0 +1,29 @@
+import "std:env" as env;
+import "std:launch" as launch;
+import "std:tls" as tls;
+import "std:testing" as testing;
+
+pub fn main() {
+    let url = env.get("ASTRA_TLS_TEST_URL");
+    let caFile = env.get("ASTRA_TLS_TEST_CA");
+    let untrustedBlocked = false;
+    try {
+        launch.get(url);
+    } catch (error) {
+        untrustedBlocked = true;
+    }
+    testing.assert(untrustedBlocked);
+    let response = launch.get(url, { caInfo: caFile });
+    testing.assert(response.status == 200);
+    testing.assert(response.ok == true);
+    let result = tls.verify(url, caFile);
+    testing.assert(result.verified == true);
+    testing.assert(result.backend.length > 0);
+    let downgradeBlocked = false;
+    try {
+        launch.get(url + "downgrade");
+    } catch (error) {
+        downgradeBlocked = true;
+    }
+    testing.assert(downgradeBlocked);
+}

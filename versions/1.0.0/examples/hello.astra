@@ -1,0 +1,12 @@
+import "std:math" as math;
+
+fn square(value) {
+    return value * value;
+}
+
+pub fn main() {
+    const name = "Astra";
+    let result = square(12);
+    console.log(`${name}:`, result);
+    console.log(math.sqrt(result));
+}

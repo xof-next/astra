@@ -1,0 +1,4 @@
+[diagnostics]
+format = "error[CODE]: message"
+show_source_line = true
+show_caret = true

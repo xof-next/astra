@@ -1,0 +1,50 @@
+import "std:json" as json;
+import "std:env" as env;
+import "std:testing" as testing;
+import "std:string" as text;
+
+pub async fn main() {
+    let base = env.get("ASTRA_HTTP_TEST_URL");
+    let responsePending = launch.get(base + "/get");
+    let customHeadersPending = launch.get(base + "/get", { headers: { "X-Astra-Test": "enabled" } });
+    let concurrentFirst = launch.get(base + "/concurrent/first");
+    let concurrentSecond = launch.get(base + "/concurrent/second");
+    let response = await responsePending;
+    testing.assert(response.status == 200);
+    testing.assert(response.ok == true);
+    testing.assert(text.contains(response.headers["content-type"], "application/json"));
+    let data = json.parse(response.body);
+    testing.assert(data.method == "GET");
+    let customHeaders = await customHeadersPending;
+    testing.assert(json.parse(customHeaders.body).testHeader == "enabled");
+    testing.assert((await concurrentFirst).status == 200, "first asynchronous request must overlap");
+    testing.assert((await concurrentSecond).status == 200, "second asynchronous request must overlap");
+    let redirected = await launch.get(base + "/redirect");
+    testing.assert(redirected.status == 200);
+    testing.assert(redirected.redirected == true);
+    let missing = await launch.get(base + "/missing");
+    testing.assert(missing.status == 404);
+    testing.assert(missing.ok == false);
+    let limitTriggered = false;
+    try {
+        await launch.get(base + "/large", { maxResponseBytes: 4 });
+    } catch (error) {
+        limitTriggered = true;
+    }
+    testing.assert(limitTriggered);
+    let post = await launch.post(base + "/post", "{\"astra\":true}", { headers: { "Content-Type": "application/json" } });
+    testing.assert(post.status == 201);
+    testing.assert(json.parse(post.body).received == "{\"astra\":true}");
+    let put = await launch.put(base + "/put", "put-body");
+    testing.assert(json.parse(put.body).method == "PUT");
+    let patch = await launch.patch(base + "/patch", "patch-body");
+    testing.assert(json.parse(patch.body).method == "PATCH");
+    let deleted = await launch.delete(base + "/delete");
+    testing.assert(deleted.status == 202);
+    let options = await launch.options(base + "/options");
+    testing.assert(options.status == 204);
+    let requested = await launch.request(base + "/post", { method: "POST", body: "request-body" });
+    testing.assert(json.parse(requested.body).received == "request-body");
+    let head = await launch.head(base + "/head");
+    testing.assert(head.status == 200);
+}

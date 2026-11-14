@@ -1,0 +1,55 @@
+import "std:collections" as collections;
+import "std:testing" as testing;
+
+pub fn main() {
+    let unique = collections.unique([1, 1, 2, 3, 2, "3"]);
+    testing.assert(unique.length == 4);
+    testing.assert(unique[0] == 1);
+    testing.assert(unique[3] == "3");
+    let shared = { id: 1 };
+    testing.assert(collections.unique([shared, shared]).length == 1);
+    testing.assert(collections.unique([{ id: 1 }, { id: 1 }]).length == 2);
+
+    let chunks = collections.chunk([1, 2, 3, 4, 5], 2);
+    testing.assert(chunks.length == 3);
+    testing.assert(chunks[2].length == 1);
+    testing.assert(chunks[1][0] == 3);
+
+    let nested = [[1, 2], [3, [4, 5]]];
+    let once = collections.flatten(nested);
+    testing.assert(once.length == 4);
+    let deep = collections.flatten(nested, 2);
+    testing.assert(deep.length == 5);
+    testing.assert(deep[4] == 5);
+
+    let zipped = collections.zip(["a", "b", "c"], [1, 2]);
+    testing.assert(zipped.length == 2);
+    testing.assert(zipped[1][0] == "b");
+    testing.assert(zipped[1][1] == 2);
+
+    let grouped = collections.groupBy([
+        { type: "fruit", name: "apple" },
+        { type: "vegetable", name: "carrot" },
+        { type: "fruit", name: "pear" }
+    ], "type");
+    testing.assert(grouped.fruit.length == 2);
+    testing.assert(grouped.vegetable[0].name == "carrot");
+
+    let groupedTypes = collections.groupBy([
+        { key: 1 }, { key: "1" }, { key: true }, { key: "true" }, { key: 1.5 }
+    ], "key");
+    testing.assert(groupedTypes["#int:1"].length == 1);
+    testing.assert(groupedTypes["1"].length == 1);
+    testing.assert(groupedTypes["#bool:true"].length == 1);
+    testing.assert(groupedTypes["true"].length == 1);
+    testing.assert(groupedTypes["#float:0x1.8p+0"].length == 1);
+
+    let badSize = false;
+    try { collections.chunk([1], 0); } catch (error) { badSize = true; }
+    testing.assert(badSize);
+    let badGrouping = false;
+    try { collections.groupBy([{ x: { nested: true } }], "x"); } catch (error) { badGrouping = true; }
+    testing.assert(badGrouping);
+
+    console.info("collections standard module passed");
+}

@@ -1,0 +1,3 @@
+# Astra lockfile v1.0.0
+# No Astra package dependencies are installed in this project.
+# Native build requirements (libcurl and zlib) are managed by the system/CMake.

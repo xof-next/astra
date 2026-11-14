@@ -1,0 +1,23 @@
+import "std:buffer" as buffer;
+import "std:compress" as compress;
+import "std:query" as query;
+import "std:validate" as validate;
+
+pub fn main() {
+    let source = "Astra Script v1.0.0";
+    let encoded = buffer.toBase64(source);
+    let restored = buffer.fromBase64(encoded);
+    console.log("Base64:", encoded);
+    console.log("Restored:", restored);
+
+    let packed = compress.gzip(source);
+    console.log("Compressed bytes:", buffer.byteLength(packed));
+    console.log("Unpacked:", compress.gunzip(packed));
+
+    let params = query.parse("name=Astra&tag=native&tag=cpp");
+    console.log("Name:", params.name);
+    console.log("Tags:", params.tag.length);
+
+    console.log("Valid email:", validate.isEmail("dev@example.com"));
+    console.log("Valid IPv4:", validate.isIPv4("127.1.0.0"));
+}
