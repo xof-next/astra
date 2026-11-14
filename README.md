@@ -59,7 +59,7 @@ astra use 1.0.1
 astra update
 ```
 
-`astra install` without a version installs the version selected by `pack.json` → `new`. `astra use` switches the active runtime without removing other installed versions. Online installation requires a published GitHub Release with the exact tag and platform asset names listed in `pack.json`, plus SHA-256 metadata accepted by the updater.
+`astra install` without a version installs the version selected by `pack.json` → `new`. `astra install <version>` and `astra use <version>` allow explicit version selection without removing other installed versions. `astra update` downloads and verifies the selected `new` release again, even when that version is already installed. On Termux, the updater uses `$PREFIX/bin/astra` and requires the selected version to publish an `android-aarch64` asset in `pack.json`. Online installation requires a published GitHub Release with the exact tag and platform asset names listed in `pack.json`, plus SHA-256 metadata accepted by the updater.
 
 ## Release process
 

@@ -39,3 +39,10 @@
 - The Linux Release build is verified; Windows/macOS builds were not verified in this environment.
 
 This remains a C++17 interpreter preview, not a native-code compiler or a production sandbox. The preview HTTP server is sequential and is not intended as a high-concurrency production server. The manifest-based updater is wired to `pack.json`; online binary installation requires the repository and matching GitHub Release assets to be published.
+
+### Updater maintenance (Termux and version refresh)
+- Detect Android ARM64 as `android-aarch64` instead of generic Linux ARM64.
+- Install the active executable into `$PREFIX/bin/astra` on Termux when `PREFIX` is set.
+- Make `astra update` download and verify the selected release even when that version is already installed.
+- Keep `astra install <version>` and `astra use <version>` available for explicit version selection.
+- Fix the local pack-manifest CLI test to follow the repository manifest's `new` version.

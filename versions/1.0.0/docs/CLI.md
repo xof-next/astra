@@ -33,6 +33,7 @@ cd astra/versions/1.0.0
 When `astra init` runs with no arguments from the Astra source root (detected by `CMakeLists.txt`, `src/cli/main.cpp`, and `stdlib/modules.toml`), it copies the currently running executable into the user's global executable directory. It does not copy source files into application projects.
 
 - Linux/macOS: `~/.local/bin/astra`
+- Android/Termux: `$PREFIX/bin/astra` when `PREFIX` is available
 - Windows: `%LOCALAPPDATA%\Programs\Astra\bin\astra.exe`
 
 On Linux/macOS the installer prints a `PATH` line when `~/.local/bin` is not present in the current `PATH`. On Windows it prints the directory to add to the current user's `PATH`; open a new terminal after changing it. Run `astra --version` from another directory to verify.
@@ -92,14 +93,14 @@ The updater reads:
 
 `https://raw.githubusercontent.com/xof-next/astra/main/pack.json`
 
-It then requests the matching GitHub Release tag (for example `v1.0.0`). Each selected version must have the platform asset named in its manifest entry. The updater verifies the SHA-256 digest from GitHub Release metadata, or from a `SHA256SUMS.txt` asset, before preserving the binary.
+It then requests the matching GitHub Release tag (for example `v1.0.0`). Each selected version must have the platform asset named in its manifest entry. On Android/Termux, the updater identifies the target as `android-aarch64`; a version can be downloaded there only when that version publishes an `android-aarch64` asset in `pack.json`. The updater verifies the SHA-256 digest from GitHub Release metadata, or from a `SHA256SUMS.txt` asset, before preserving the binary.
 
 Installed binaries are kept independently:
 
 - Linux/macOS: `~/.astra/versions/<version>/astra`
 - Windows: `%LOCALAPPDATA%\Astra\versions\<version>\astra.exe`
 
-The active command remains at the global CLI path. `astra use` stages and atomically replaces that active executable from the selected installed version. Other version directories are retained.
+The active command remains at the platform global CLI path. On Android/Termux, this is `$PREFIX/bin/astra` when `PREFIX` is set, so the command is immediately available through the normal Termux `PATH`. `astra use` stages and atomically replaces that active executable from the selected installed version. Other version directories are retained. `astra update` always downloads and verifies the manifest-selected release again before activation; `astra install` can reuse an already-installed version.
 
 Expected asset names in the initial `1.0.0` manifest entry:
 

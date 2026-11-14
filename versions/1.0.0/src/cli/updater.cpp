@@ -203,6 +203,8 @@ std::string platformKey(){
     return "macos-aarch64";
 #elif defined(__APPLE__) && defined(__x86_64__)
     return "macos-x86_64";
+#elif defined(__ANDROID__) && (defined(__aarch64__) || defined(_M_ARM64))
+    return "android-aarch64";
 #elif defined(__linux__) && (defined(__aarch64__) || defined(_M_ARM64))
     return "linux-aarch64";
 #elif defined(__linux__) && (defined(__x86_64__) || defined(_M_X64))
@@ -219,10 +221,17 @@ std::string homeDirectory(){
 #endif
     return {};
 }
-fs::path targetPath(){const auto home=homeDirectory();if(home.empty())return {};
+fs::path targetPath(){
 #ifdef _WIN32
+    const auto home=homeDirectory();if(home.empty())return {};
     return fs::path(home)/"Programs"/"Astra"/"bin"/"astra.exe";
+#elif defined(__ANDROID__)
+    const char* prefix=std::getenv("PREFIX");
+    if(prefix&&*prefix)return fs::path(prefix)/"bin"/"astra";
+    const auto home=homeDirectory();if(home.empty())return {};
+    return fs::path(home)/".local"/"bin"/"astra";
 #else
+    const auto home=homeDirectory();if(home.empty())return {};
     return fs::path(home)/".local"/"bin"/"astra";
 #endif
 }
@@ -296,7 +305,9 @@ int installRuntimeVersion(const std::string& requestedVersion,bool update) {
     if(platformAsset.empty()||platformAsset.size()>128||platformAsset.find('/')!=std::string::npos||platformAsset.find('\\')!=std::string::npos){curl_global_cleanup();return fail("E9011","pack.json has no safe binary asset for platform `"+platform+"`");}
     const auto versionPath=versionBinaryPath(selected);if(versionPath.empty()){curl_global_cleanup();return fail("E9008","Cannot determine user version storage directory");}
     std::error_code existsError;const bool alreadyInstalled=fs::is_regular_file(versionPath,existsError)&&!existsError&&isPlatformBinary(versionPath);
-    if(!alreadyInstalled){
+    // `update` must fetch the selected release again even when a local copy exists.
+    // `install` may reuse an already-installed binary and simply activate it.
+    if(update||!alreadyInstalled){
         const std::string releaseUrl=std::string(kReleaseApiPrefix)+tag;
         auto release=request(releaseUrl);
         if(!release.error.empty()||release.status<200||release.status>=300){curl_global_cleanup();return fail("E9012",release.status==404?"Release "+tag+" is not published yet. Publish its platform binaries first.":"Cannot load release "+tag+": "+(release.error.empty()?"HTTP "+std::to_string(release.status):release.error));}
@@ -318,7 +329,7 @@ int installRuntimeVersion(const std::string& requestedVersion,bool update) {
         std::string error;if(!storeVersionBinary(temp,versionPath,error)){fs::remove(temp,ec);curl_global_cleanup();return fail("E9017",error);}fs::remove(temp,ec);
     }
     std::string activationError;if(!installBinary(versionPath,target,activationError)){curl_global_cleanup();return fail("E9017",activationError);}
-    curl_global_cleanup();std::cout<<"Astra "<<(alreadyInstalled?(update?"selected":"already installed; activated"):"installed")<<" and activated.\nVersion: "<<selected<<"\nRuntime: "<<target.string()<<"\n";
+    curl_global_cleanup();std::cout<<"Astra "<<(update?(alreadyInstalled?"updated":"installed"):(alreadyInstalled?"already installed; activated":"installed"))<<" and activated.\nVersion: "<<selected<<"\nRuntime: "<<target.string()<<"\n";
 #ifndef _WIN32
     if(target.parent_path().string().find(".local/bin")!=std::string::npos){const char* path=std::getenv("PATH");if(!path||std::string(path).find(target.parent_path().string())==std::string::npos)std::cout<<"Ensure ~/.local/bin is in PATH.\n";}
 #endif
