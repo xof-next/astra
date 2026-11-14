@@ -3,6 +3,7 @@
 #include "astra/lexer.hpp"
 #include "astra/modules.hpp"
 #include <fstream>
+#include <cstdio>
 #include <iostream>
 #include <sstream>
 #include <unordered_set>
@@ -26,7 +27,16 @@ bool checkFile(const std::string& path,bool verbose) {
     const auto tokens=lexer.scan();
     bool ok=true;
     for(const auto& lexError:lexer.errors()) {
-        std::cerr << "error[E1002]: " << lexError << "\n";
+        std::string message=lexError;
+        int lineNumber=1,column=1;
+        const size_t marker=lexError.rfind(" at ");
+        if(marker!=std::string::npos) {
+            message=lexError.substr(0,marker);
+            const std::string location=lexError.substr(marker+4);
+            std::sscanf(location.c_str(),"%d:%d",&lineNumber,&column);
+        }
+        const std::string sourceLine=lineNumber>0&&static_cast<size_t>(lineNumber)<=lines.size()?lines[static_cast<size_t>(lineNumber-1)]:"";
+        report({"E1002",message,path,sourceLine,lineNumber,column});
         ok=false;
     }
     if(!ok) return false;

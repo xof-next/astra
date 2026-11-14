@@ -1,8 +1,8 @@
 # Astra Script 1.0.1
 
-Astra is a C++17 language runtime with a JavaScript-inspired syntax, a native command-line interface, and a built-in standard library. This repository contains the compiler and interpreter source for Astra 1.0.1.
+Astra is a C++17 language runtime with its own syntax, a native command-line interface, and a built-in standard library. This repository contains the compiler and interpreter source for Astra 1.0.1.
 
-Version 1.0.1 focuses on bounded HTTP server concurrency, request and response resource limits, safer request deadlines, portable native threading, and clearer platform build instructions. It remains an interpreted language preview: it does not compile Astra source into native machine code and it is not a security sandbox.
+Version 1.0.1 includes the language/runtime corrections documented below, plus bounded HTTP server concurrency, request and response resource limits, safer request deadlines, portable native threading, and clearer platform build instructions. It remains an interpreted language preview: it does not compile Astra source into native machine code and it is not a security sandbox.
 
 ## Contents
 
@@ -11,6 +11,7 @@ Version 1.0.1 focuses on bounded HTTP server concurrency, request and response r
 - [Build from source](#build-from-source)
 - [Install the CLI](#install-the-cli)
 - [Create and run a project](#create-and-run-a-project)
+- [Language and runtime](#language-and-runtime)
 - [HTTP server](#http-server)
 - [Concurrency and capacity](#concurrency-and-capacity)
 - [Platform support](#platform-support)
@@ -22,7 +23,7 @@ Version 1.0.1 focuses on bounded HTTP server concurrency, request and response r
 ## Highlights
 
 - C++17 runtime and native `astra` CLI.
-- JavaScript-inspired declarations, functions, arrow functions, closures, `async fn`, and `await` syntax backed by a bounded native worker executor.
+- Lexical block scopes, closures, hoisted function declarations, object parameter destructuring, module imports and exports, `sync fn`, `async fn`, and Future-backed `await`.
 - 37 built-in standard modules and 172 registered exports, including networking, HTTP clients, HTTP server routing, DNS, TCP, TLS clients, JSON, filesystem access, cryptography, compression, text processing, and collections.
 - Version-aware CLI installation through the repository-root `pack.json` manifest.
 - HTTP server with a fixed worker pool, bounded pending queue, explicit overload responses, per-IP and total connection limits, request-rate limits, buffer limits, and an absolute request-read deadline.
@@ -139,6 +140,36 @@ astra check main.astra
 
 Astra also supports extensionless source paths with `astra run`. Project task aliases can be declared under `[devDependencies]` in `Astra.toml`; task values are restricted to Astra source invocations and are not executed through a shell.
 
+## Language and runtime
+
+Astra 1.0.1 has block-level lexical scopes, mutable `let` bindings, initialized immutable `const` bindings, hoisted function declarations, closures, exact-arity function calls, object parameter destructuring, and explicit module publication through `pub`. `null` and `undefined` are distinct values; an uninitialized `let` and a missing object property produce `undefined`. Ordinary property access on `null` or `undefined` is an error, while nested optional property access such as `user?.profile?.url` produces `undefined` when a receiver is nullish.
+
+`type(value)` reports the internal Astra type. It reports `promise` for a Future and inspects the resolved value when used as `type(await expression)` inside an allowed function. Ordinary `fn` functions cannot use `await`; `sync fn` can wait for Future results, and `async fn` / async arrows return Future values. A caller does not become asynchronous merely because it calls a function returning a Future.
+
+Local modules are resolved relative to the importing file. The runtime supports named, namespace, import-all and default imports, plus live exported bindings and circular module loading. `pub` exposes only explicitly published bindings. See the complete [Astra 1.0.1 language and runtime reference](docs/LANGUAGE.md) for syntax, operators, parameter patterns, path rules, module state, comments, and diagnostic codes. The reference links to examples that are executed by CTest.
+
+Minimal runnable program:
+
+```astra
+let message;
+message = "hello";
+
+fn greet(value) {
+    return message + " " + value;
+}
+
+pub fn main() {
+    console.log(greet("Astra"));
+}
+```
+
+Run the language example and module example from this source directory:
+
+```sh
+./build/astra run examples/language_runtime.astra
+./build/astra run examples/module_runtime/main.astra
+```
+
 ## HTTP server
 
 The `std:server` module creates a native HTTP/1.x server. The API supports route registration, route parameters, request headers and query values, fixed-length request bodies, and JSON or text responses.
@@ -252,7 +283,7 @@ Astra accepts connections on one listener thread and dispatches accepted sockets
 
 Astra route callbacks are intentionally serialized per server instance. Route functions may capture mutable interpreter environments, and this interpreter does not provide isolated execution contexts for concurrent evaluation of the same captured environment. The mutex prevents unsafe simultaneous mutation, but it also means that CPU-heavy or blocking route callbacks execute one at a time. Increasing `workers` improves connection I/O concurrency; it does not make Astra handler code execute in parallel.
 
-The current server handles one HTTP request per TCP connection and closes the connection after the response. It supports HTTP/1.0 and HTTP/1.1 request lines with fixed `Content-Length` bodies. It does not implement keep-alive, chunked transfer decoding, HTTP/2, HTTP/3, QUIC, WebSocket upgrades, streaming responses, TLS server sockets, or a JavaScript-compatible event loop.
+The current server handles one HTTP request per TCP connection and closes the connection after the response. It supports HTTP/1.0 and HTTP/1.1 request lines with fixed `Content-Length` bodies. It does not implement keep-alive, chunked transfer decoding, HTTP/2, HTTP/3, QUIC, WebSocket upgrades, streaming responses, TLS server sockets, or an event-loop scheduler.
 
 There is no honest universal request-per-second guarantee. Capacity depends on handler cost, connection churn, payload size, CPU, memory, file descriptors, kernel limits, network bandwidth, and reverse-proxy configuration. The included concurrent integration test is a functional smoke test, not a large-scale capacity benchmark.
 
@@ -263,7 +294,7 @@ Astra uses C++17, CMake, libcurl, zlib, the C++ threading library, and native so
 | Platform | Build path | Validation in this delivery |
 |---|---|---|
 | Ubuntu | Native CMake build | Not executed in this environment |
-| Debian 13 x86_64 | Native CMake build | Release build and all 39 CTest cases passed |
+| Debian 13 x86_64 | Native CMake build | Release build and all 42 CTest cases passed |
 | Other Linux distributions | Native CMake build with matching development packages | Not all distributions and libc variants tested |
 | Windows x64 | MSVC or supported MinGW toolchain, libcurl and zlib | Not executed in this environment |
 | Windows ARM64 | Matching ARM64 compiler and dependency packages | Not executed in this environment |
@@ -297,12 +328,13 @@ The exact build host, toolchain, test results, and unverified platform targets a
 - [Built-in modules](docs/MODULES.md)
 - [Runtime limitations](docs/LIMITATIONS.md)
 - [Validation record](docs/VERIFICATION.md)
+- [Language and runtime reference](docs/LANGUAGE.md)
 - [Language errors](docs/ERRORS.md)
 - [Arrow functions and closures](docs/ARROW_FUNCTIONS.md)
 - [Changelog](CHANGELOG.md)
 
 ## Current limitations
 
-Astra 1.0.1 is an interpreter preview. It does not provide native code generation, a formal complete language specification, a JavaScript event loop, promise chaining methods, parallel execution of shared handler environments, complete Unicode language semantics, or a production security sandbox. The HTTP server is a bounded HTTP/1.x service component, not a replacement for Nginx, Caddy, HAProxy, Envoy, or a managed edge platform.
+Astra 1.0.1 is an interpreter preview. It does not provide native code generation, a complete formal language specification, an event-loop scheduler, promise chaining methods, parallel execution of shared handler environments, complete Unicode language semantics, or a production security sandbox. The HTTP server is a bounded HTTP/1.x service component, not a replacement for Nginx, Caddy, HAProxy, Envoy, or a managed edge platform.
 
 For public deployments, place Astra behind a maintained reverse proxy or load balancer. Terminate TLS at that layer, enforce connection and request limits, apply rate limiting, configure access logging, and keep the Astra listener bound to a private interface when practical.

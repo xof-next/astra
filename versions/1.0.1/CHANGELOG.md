@@ -26,6 +26,18 @@
 - Added `astra config check` and project initialization of a safe `astra.conf` template.
 - Kept the feature isolated to version 1.0.1; the 1.0.0 source, manifest version entry, and runtime behavior are unchanged.
 
+### Language and module runtime
+
+- Added distinct `undefined` and `null` runtime values and consistent `type()` names, including `promise` for Future values.
+- Added mutable uninitialized `let`, initialized immutable `const`, lexical block environments, shadowing, closure capture, and function declaration hoisting.
+- Added object parameter destructuring (including keyed nested patterns), exact argument-count validation, and duplicate/invalid parameter diagnostics.
+- Added `#` line comments with preserved source line and column tracking.
+- Added file module imports for named, namespace, all-export, and default forms, path resolution relative to the importing file, `std:` module imports, and read-only live import bindings.
+- Added `pub` declarations and aliases, live exports, module load states, and successful circular-import support.
+- Restricted `await` to permitted `sync` / asynchronous function contexts; nested Future values are resolved and asynchronous failures are reported at the awaiting expression.
+- Added the `std:validate.isEmpty()` whitespace-only string check without changing `type()` semantics.
+- Added a language reference, runnable examples, and an automated regression suite for the updated runtime behavior.
+
 ### Asynchronous runtime
 
 - Added promise-backed `async fn` and asynchronous arrow functions.
@@ -52,7 +64,7 @@
 ### Verification status
 
 - The Debian GNU/Linux 13 x86_64 Release build succeeds in the current validation environment.
-- All 39 CTest cases pass in the current Debian 13 x86_64 environment, including an absolute request-deadline check and an oversized-response check.
+- All 42 CTest cases pass in the current Debian 13 x86_64 environment, including an absolute request-deadline check and an oversized-response check.
 - Windows, macOS, other Linux libc variants, and Android/Termux have source-build instructions but were not executed in this validation environment.
 - The 1,000-request concurrent integration test is a functional stress smoke test, not a throughput benchmark or a million-requests-per-second certification.
 - The release workflow fixes the Android SDK package/license setup, Windows `min`/`max` macro collision, and macOS `timeval` narrowing errors identified in the previous runner logs.

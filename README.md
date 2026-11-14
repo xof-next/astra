@@ -1,6 +1,6 @@
 # Astra Script
 
-Astra is a C++17 language runtime with a JavaScript-inspired syntax, a native command-line interface, and a built-in standard library. The repository keeps each runtime version in its own source directory so that older versions remain available and reproducible.
+Astra is a C++17 language runtime with its own syntax, a native command-line interface, and a built-in standard library. The repository keeps each runtime version in its own source directory so that older versions remain available and reproducible.
 
 ## Repository structure
 
@@ -47,7 +47,7 @@ astra --help
 astra init --project
 ```
 
-See the [Astra 1.0.1 README](versions/1.0.1/README.md) for project setup, language examples, the HTTP server API, platform instructions, and runtime limits. The [runtime configuration reference](versions/1.0.1/docs/CONFIGURATION.md) documents all `astra.conf` settings and version compatibility.
+See the [Astra 1.0.1 README](versions/1.0.1/README.md) and the [language/runtime reference](versions/1.0.1/docs/LANGUAGE.md) for project setup, syntax, scope, functions, modules, asynchronous execution, the HTTP server API, platform instructions, and runtime limits. The [runtime configuration reference](versions/1.0.1/docs/CONFIGURATION.md) documents all `astra.conf` settings and version compatibility.
 
 ## Version management
 

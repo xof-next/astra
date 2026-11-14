@@ -1,0 +1,12 @@
+import { value, update } as "./counter";
+import * as "./counter";
+import get as "./counter";
+
+pub fn main() {
+    assert(value == 1);
+    update(2);
+    assert(value == 2);
+    assert(counter.value == 2);
+    assert(get() == 2);
+    console.log("Astra module runtime example passed");
+}

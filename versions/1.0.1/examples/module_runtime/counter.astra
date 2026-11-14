@@ -1,0 +1,12 @@
+let value = 1;
+pub value;
+
+pub fn update(next) {
+    value = next;
+}
+
+pub fn get() {
+    return value;
+}
+
+pub { default: get };

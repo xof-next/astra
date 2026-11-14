@@ -13,10 +13,13 @@ std::mutex asyncTasksMutex;
 std::condition_variable asyncTasksCondition;
 constexpr size_t maxAsyncTasks = 16;
 }
-bool Environment::define(const std::string& n,const Value& v,bool c){std::lock_guard<std::mutex>lock(mutex);if(values.count(n))return false;values[n]=v;if(c)constants.insert(n);return true;}
-Value Environment::get(const std::string& n) const {std::shared_ptr<Environment> next;{std::lock_guard<std::mutex>lock(mutex);auto i=values.find(n);if(i!=values.end())return i->second;next=parent;}return next?next->get(n):Value{};}
-bool Environment::assign(const std::string& n,const Value& v){std::shared_ptr<Environment> next;{std::lock_guard<std::mutex>lock(mutex);auto i=values.find(n);if(i!=values.end()){if(constants.count(n))return false;i->second=v;return true;}next=parent;}return next?next->assign(n,v):false;}
-bool Environment::isConstant(const std::string& n) const {std::shared_ptr<Environment> next;{std::lock_guard<std::mutex>lock(mutex);if(values.count(n))return constants.count(n)!=0;next=parent;}return next?next->isConstant(n):false;}
+bool Environment::define(const std::string& n,const Value& v,bool c){std::lock_guard<std::mutex>lock(mutex);if(values.count(n)||imports.count(n))return false;values[n]=v;if(c)constants.insert(n);return true;}
+bool Environment::defineImport(const std::string& n,const std::shared_ptr<Environment>& source,const std::string& name){std::lock_guard<std::mutex>lock(mutex);if(imports.count(n))return false;auto existing=values.find(n);if(existing!=values.end()){if(constants.count(n)||!std::holds_alternative<Undefined>(existing->second.data))return false;values.erase(existing);}imports.emplace(n,std::make_pair(source,name));return true;}
+bool Environment::hasOwn(const std::string& n) const {std::lock_guard<std::mutex>lock(mutex);return values.count(n)||imports.count(n);}
+bool Environment::hasBinding(const std::string& n) const {std::shared_ptr<Environment> next;{std::lock_guard<std::mutex>lock(mutex);if(values.count(n)||imports.count(n))return true;next=parent;}return next?next->hasBinding(n):false;}
+Value Environment::get(const std::string& n) const {std::shared_ptr<Environment> next;std::shared_ptr<Environment> imported;std::string importedName;{std::lock_guard<std::mutex>lock(mutex);auto i=values.find(n);if(i!=values.end())return i->second;auto alias=imports.find(n);if(alias!=imports.end()){imported=alias->second.first;importedName=alias->second.second;}else next=parent;}if(imported)return imported->get(importedName);return next?next->get(n):Value{};}
+bool Environment::assign(const std::string& n,const Value& v){std::shared_ptr<Environment> next;{std::lock_guard<std::mutex>lock(mutex);if(imports.count(n))return false;auto i=values.find(n);if(i!=values.end()){if(constants.count(n))return false;i->second=v;return true;}next=parent;}return next?next->assign(n,v):false;}
+bool Environment::isConstant(const std::string& n) const {std::shared_ptr<Environment> next;{std::lock_guard<std::mutex>lock(mutex);if(imports.count(n))return true;if(values.count(n))return constants.count(n)!=0;next=parent;}return next?next->isConstant(n):false;}
 Value makeFuture(std::function<Value()> task){
     auto promise=std::make_shared<std::promise<Value>>();
     auto result=promise->get_future().share();

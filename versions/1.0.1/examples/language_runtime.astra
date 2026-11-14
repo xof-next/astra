@@ -1,0 +1,50 @@
+let greeting;
+greeting = "hello";
+const rootValue = "outer";
+
+fn readRoot() {
+    return rootValue;
+}
+
+fn makeCounter() {
+    let count = 0;
+    fn next() {
+        count++;
+        return count;
+    }
+    return next;
+}
+
+fn extract({ payload: { value }, options: { enabled } }) {
+    if (enabled) return value;
+    return 0;
+}
+
+async fn loadValue() {
+    return 42;
+}
+
+sync fn resolvedType() {
+    return type(await loadValue());
+}
+
+pub sync fn main() {
+    assert(greeting == "hello");
+    assert(readRoot() == "outer");
+    const next = makeCounter();
+    assert(next() == 1 && next() == 2);
+    assert(extract({ payload: { value: 7 }, options: { enabled: true } }) == 7);
+    let branch = 0;
+    if (false) branch = 1;
+    else if (true) branch = 2;
+    else branch = 3;
+    assert(branch == 2);
+    let missing = undefined;
+    assert(type(missing?.profile?.url) == "undefined");
+    assert(type(null) == "null");
+    assert(type(undefined) == "undefined");
+    assert(resolvedType() == "int");
+    let syncArrow = sync () => { return await loadValue(); };
+    assert(syncArrow() == 42);
+    console.log("Astra language runtime example passed");
+}

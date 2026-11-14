@@ -15,6 +15,7 @@ namespace astra {
 struct Undefined {};
 struct Null {};
 struct Array;
+struct Environment;
 struct Object;
 struct Function;
 struct Future;
@@ -29,9 +30,25 @@ struct Value {
     template<class T> Value(T v) : data(std::move(v)) {}
 };
 struct Array { std::vector<Value> items; };
-struct Object { std::map<std::string, Value> fields; std::string moduleName; };
+struct Object {
+    std::map<std::string, Value> fields;
+    std::string moduleName;
+    std::shared_ptr<Environment> moduleEnvironment;
+    std::map<std::string, std::string> moduleExports;
+    std::shared_ptr<std::map<std::string, std::string>> liveModuleExports;
+};
+struct ParameterPattern {
+    struct Property {
+        std::string name;
+        std::shared_ptr<ParameterPattern> nested;
+    };
+    bool object = false;
+    std::string name;
+    std::vector<Property> properties;
+};
 struct Function {
     std::vector<std::string> parameters;
+    std::vector<ParameterPattern> parameterPatterns;
     std::vector<Token> body;
     std::shared_ptr<struct Environment> closure;
     std::function<Value(const std::vector<Value>&)> invoke;
@@ -44,11 +61,15 @@ struct Future {
 };
 struct Environment : std::enable_shared_from_this<Environment> {
     std::map<std::string, Value> values;
+    std::map<std::string, std::pair<std::shared_ptr<Environment>, std::string>> imports;
     std::set<std::string> constants;
     std::shared_ptr<Environment> parent;
     std::vector<std::shared_ptr<Environment>> children;
     mutable std::mutex mutex;
     bool define(const std::string&, const Value&, bool constant=false);
+    bool defineImport(const std::string&, const std::shared_ptr<Environment>&, const std::string&);
+    bool hasOwn(const std::string&) const;
+    bool hasBinding(const std::string&) const;
     Value get(const std::string&) const;
     bool assign(const std::string&, const Value&);
     bool isConstant(const std::string&) const;

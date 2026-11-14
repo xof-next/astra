@@ -58,6 +58,8 @@ add_test(NAME help_has_install COMMAND astra --help)
 add_test(NAME modules COMMAND astra modules)
 add_test(NAME check_hello COMMAND astra check ${CMAKE_CURRENT_SOURCE_DIR}/examples/hello.astra)
 add_test(NAME run_hello COMMAND astra run ${CMAKE_CURRENT_SOURCE_DIR}/examples/hello.astra)
+add_test(NAME language_runtime_example COMMAND astra run ${CMAKE_CURRENT_SOURCE_DIR}/examples/language_runtime.astra)
+add_test(NAME module_runtime_example COMMAND astra run ${CMAKE_CURRENT_SOURCE_DIR}/examples/module_runtime/main.astra)
 add_test(NAME run_stdlib COMMAND astra run ${CMAKE_CURRENT_SOURCE_DIR}/tests/cases/stdlib.astra)
 add_test(NAME run_data_tools_example COMMAND astra run ${CMAKE_CURRENT_SOURCE_DIR}/examples/data_tools.astra)
 add_test(NAME web_standard_modules COMMAND astra run ${CMAKE_CURRENT_SOURCE_DIR}/tests/cases/web-tools.astra)
@@ -142,4 +144,8 @@ endif()
 if(Python3_Interpreter_FOUND)
   add_test(NAME minimal_project_init COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/run_init_test.py $<TARGET_FILE:astra>)
   add_test(NAME root_pack_manifest COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../../scripts/validate-pack.py)
+  add_test(NAME language_runtime_regressions
+    COMMAND ${Python3_EXECUTABLE}
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/run_language_regressions.py
+      $<TARGET_FILE:astra>)
 endif()

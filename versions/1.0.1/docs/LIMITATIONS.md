@@ -12,22 +12,22 @@ Implemented in this expanded preview:
 - Synchronous in-process event listeners through `events`.
 - Gzip/zlib compression and CRC-32 with bounded decompression.
 - Byte-string, query-string and common input-validation helpers.
-- Named functions, JavaScript-style `function` declaration alias, expression/block arrow functions, basic lexical closures, and Rust-style synchronous closures (`|value| expression`).
+- Named functions (`fn` and `function`), expression/block arrow functions, lexical closures, and synchronous pipe-parameter closures (`|value| expression`).
 - Core standard namespaces globally available without `import`; local declarations shadow these names lexically.
 - CLI `install`, `update`, `version`, global bootstrap via `astra init` from a source checkout, `init --project`, task aliases in `[devDependencies]`, direct filename shorthand, `run`, `check`, and `modules` commands.
 
 Not implemented in this preview:
 
 - Native machine-code generation, bytecode, optimizer, debugger or profiler.
-- External package installation, package registry, dependency resolution, `Astra.lock` generation, and loading `@scope/package` or local `./module` imports.
-- A JavaScript-compatible event loop, promise chaining methods such as `.then()` and `.catch()`, UDP sockets, WebSocket, HTTP keep-alive, chunked request decoding, HTTP/2, HTTP/3, TLS server sockets, client certificates and custom TLS callbacks. Asynchronous functions and native HTTP, DNS and TCP operations use a bounded executor with at most 16 active tasks; additional work runs inline when the limit is reached. `await` waits for the current task result and unwraps nested future results. Shared mutable arrays and objects should not be mutated concurrently across asynchronous tasks.
-- `switch`, `break`, `continue`, classes, structs, generics, typed function signatures, advanced closure semantics beyond basic lexical capture, and destructuring.
+- External package installation, package registry access, dependency resolution, `Astra.lock` generation, and loading `@scope/package` packages. Relative local `.astra` modules are supported.
+- A general event-loop scheduler, promise chaining methods such as `.then()` and `.catch()`, UDP sockets, WebSocket, HTTP keep-alive, chunked request decoding, HTTP/2, HTTP/3, TLS server sockets, client certificates and custom TLS callbacks. Asynchronous functions and native HTTP, DNS and TCP operations use a bounded executor with at most 16 active tasks; additional work runs inline when the limit is reached. `await` waits for the current task result and unwraps nested future results. Shared mutable arrays and objects should not be mutated concurrently across asynchronous tasks.
+- `switch`, `break`, `continue`, classes, structs, generics, typed function signatures, array parameter destructuring, default/rest parameters, and advanced closure semantics beyond lexical capture.
 - Full static type checker, complete parser diagnostics, full stack traces and source maps.
-- Method-style array calls such as `items.push(...)`, and full JavaScript coercion/short-circuit behavior.
+- Method-style array calls such as `items.push(...)`, complete operator coercion, and short-circuit evaluation. Logical operators evaluate their right-hand expressions.
 - Full Unicode-aware string operations. Current basic string helpers and `std:format` case conversion operate on UTF-8 bytes / ASCII case rules.
 - Sandboxed filesystem access or secure random-number generation. The HTTP server supports concurrent connection I/O through a bounded worker pool, but not parallel route callback execution. It is not a complete production web server; use a reverse proxy and OS-level limits before exposing it publicly.
 
-`astra check` performs lexical checks and selected checks for standard module names/exports, built-in global module members, and constant reassignment. `astra run` executes only the supported interpreter subset. The CLI does not compile `.astra` source into a standalone native program.
+`astra check` performs lexical checks and selected checks for standard module names/exports, built-in global module members, and constant reassignment. It is not a complete parser/type checker and does not prove runtime behavior for scope, destructuring, module initialization, or asynchronous operations. `astra run` executes only the supported interpreter subset. The CLI does not compile `.astra` source into a standalone native program.
 
 ## Runtime updater readiness
 

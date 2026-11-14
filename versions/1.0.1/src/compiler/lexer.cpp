@@ -9,6 +9,7 @@ std::vector<Token> Lexer::scan() {
         char c=source_[i];
         if(c==' '||c=='\t'||c=='\r'){++i;++col;continue;}
         if(c=='\n'){++i;++line;col=1;continue;}
+        if(c=='#'){while(i<source_.size()&&source_[i]!='\n'){++i;++col;}continue;}
         if(c=='/'&&i+1<source_.size()&&source_[i+1]=='/'){while(i<source_.size()&&source_[i]!='\n'){++i;++col;}continue;}
         if(c=='/'&&i+1<source_.size()&&source_[i+1]=='*'){
             int startLine=line,startCol=col; i+=2;col+=2; bool closed=false;
