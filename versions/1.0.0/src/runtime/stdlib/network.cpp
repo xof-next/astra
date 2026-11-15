@@ -66,7 +66,7 @@ AstraSocket connectTcp(const std::string&host,long port,long timeoutMs){
 #if defined(_WIN32)
         u_long nonblock=1;ioctlsocket(s,FIONBIO,&nonblock);int rc=::connect(s,p->ai_addr,static_cast<int>(p->ai_addrlen));if(rc==SOCKET_ERROR&&WSAGetLastError()==WSAEWOULDBLOCK){fd_set writes;FD_ZERO(&writes);FD_SET(s,&writes);timeval tv{timeoutMs/1000,(timeoutMs%1000)*1000};rc=select(0,nullptr,&writes,nullptr,&tv);if(rc>0){int err=0;int len=sizeof(err);getsockopt(s,SOL_SOCKET,SO_ERROR,reinterpret_cast<char*>(&err),&len);rc=err==0?0:SOCKET_ERROR;}else rc=SOCKET_ERROR;}nonblock=0;ioctlsocket(s,FIONBIO,&nonblock);
 #else
-        int flags=fcntl(s,F_GETFL,0);fcntl(s,F_SETFL,flags|O_NONBLOCK);int rc=::connect(s,p->ai_addr,static_cast<socklen_t>(p->ai_addrlen));if(rc<0&&errno==EINPROGRESS){fd_set writes;FD_ZERO(&writes);FD_SET(s,&writes);timeval tv{timeoutMs/1000,(timeoutMs%1000)*1000};rc=select(s+1,nullptr,&writes,nullptr,&tv);if(rc>0){int err=0;socklen_t len=sizeof(err);getsockopt(s,SOL_SOCKET,SO_ERROR,&err,&len);rc=err==0?0:-1;}else rc=-1;}if(flags>=0)fcntl(s,F_SETFL,flags);
+        int flags=fcntl(s,F_GETFL,0);fcntl(s,F_SETFL,flags|O_NONBLOCK);int rc=::connect(s,p->ai_addr,static_cast<socklen_t>(p->ai_addrlen));if(rc<0&&errno==EINPROGRESS){fd_set writes;FD_ZERO(&writes);FD_SET(s,&writes);timeval tv{};tv.tv_sec=static_cast<decltype(tv.tv_sec)>(timeoutMs/1000);tv.tv_usec=static_cast<decltype(tv.tv_usec)>((timeoutMs%1000)*1000);rc=select(s+1,nullptr,&writes,nullptr,&tv);if(rc>0){int err=0;socklen_t len=sizeof(err);getsockopt(s,SOL_SOCKET,SO_ERROR,&err,&len);rc=err==0?0:-1;}else rc=-1;}if(flags>=0)fcntl(s,F_SETFL,flags);
 #endif
         if(rc==0){connected=s;break;}closeSocket(s);
     }

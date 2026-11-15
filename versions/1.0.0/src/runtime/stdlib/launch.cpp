@@ -1,3 +1,6 @@
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include "astra/advanced_stdlib.hpp"
 #include <curl/curl.h>
 #include <algorithm>
