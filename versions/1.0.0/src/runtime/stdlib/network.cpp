@@ -101,7 +101,7 @@ Value dnsBuiltin(const std::string&name){
     if(name=="std:dns.reverse")return native([](const Args&a){need(a,1,"dns.reverse");std::string ip=stringArg(a,0,"dns.reverse");sockaddr_storage address{};socklen_t len=0;auto*v4=reinterpret_cast<sockaddr_in*>(&address);auto*v6=reinterpret_cast<sockaddr_in6*>(&address);if(inet_pton(AF_INET,ip.c_str(),&v4->sin_addr)==1){v4->sin_family=AF_INET;len=sizeof(sockaddr_in);}else if(inet_pton(AF_INET6,ip.c_str(),&v6->sin6_addr)==1){v6->sin6_family=AF_INET6;len=sizeof(sockaddr_in6);}else throw std::runtime_error("dns.reverse expects a valid IP address");char host[NI_MAXHOST]{};int rc=getnameinfo(reinterpret_cast<sockaddr*>(&address),len,host,sizeof(host),nullptr,0,NI_NAMEREQD);if(rc!=0)throw std::runtime_error("Reverse DNS lookup failed for `"+ip+"`");return Value(std::string(host));});
     return Value{};
 }
-} // namespace
+} 
 Value createNetworkBuiltin(const std::string&name){
     if(name.rfind("std:dns.",0)==0)return dnsBuiltin(name);
     if(name=="std:tcp.connect")return native([](const Args&a){need(a,2,"tcp.connect");if(a.size()>3)throw std::runtime_error("tcp.connect expects host, port and optional options");std::string host=stringArg(a,0,"tcp.connect");long port=integerArg(a[1],"tcp.connect port",1,65535,0);Value options=a.size()>2?a[2]:Value{};long timeout=integerArg(get(options,"timeoutMs"),"tcp.connect timeoutMs",100,120000,5000);return createTcpClient(connectTcp(host,port,timeout));});
@@ -114,4 +114,4 @@ Value createNetworkModule(const std::string&name){
     else out->fields["connect"]=createNetworkBuiltin("std:tcp.connect");
     return Value(out);
 }
-} // namespace astra
+} 

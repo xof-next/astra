@@ -146,8 +146,8 @@ std::string versionTag(const std::string& metadata,const std::string& version) {
     const std::string normalized=withoutV(tag);return validVersion(normalized)?tag:std::string{};
 }
 HttpResult loadPackManifest() {
-    // During development, prefer the checked-out repository manifest only when
-    // the current directory is an actual Astra version source tree.
+    
+    
     std::error_code ec;fs::path cursor=fs::current_path(ec);
     if(!ec&&fs::is_regular_file(cursor/"CMakeLists.txt",ec)&&!ec&&
        fs::is_regular_file(cursor/"src/cli/main.cpp",ec)&&!ec&&
@@ -247,7 +247,7 @@ bool installBinary(const fs::path& downloaded,const fs::path& target,std::string
     std::error_code ec;fs::create_directories(target.parent_path(),ec);if(ec){error="Cannot create runtime directory: "+ec.message();return false;}
 #ifdef _WIN32
     fs::path staged=target;staged += ".new";fs::copy_file(downloaded,staged,fs::copy_options::overwrite_existing,ec);if(ec){error="Cannot stage new runtime: "+ec.message();return false;}
-    // Windows cannot replace an executable while it is mapped. The staged image is picked up by a small detached helper after this process exits.
+    
     fs::path script=target;script += ".update.cmd";std::ofstream out(script);if(!out){error="Cannot create update helper";return false;}
     auto q=[](std::string x){size_t p=0;while((p=x.find('"',p))!=std::string::npos){x.insert(p,"^");p+=2;}return x;};
     out<<"@echo off\r\nsetlocal\r\nfor /l %%i in (1,1,60) do (\r\n  timeout /t 1 /nobreak >nul\r\n  move /y \""<<q(staged.string())<<"\" \""<<q(target.string())<<"\" >nul 2>nul && goto done\r\n)\r\nexit /b 1\r\n:done\r\ndel \"%~f0\"\r\n";out.close();
@@ -264,13 +264,34 @@ bool storeVersionBinary(const fs::path& downloaded,const fs::path& target,std::s
     chmod(staged.c_str(),0755);
 #endif
 #ifdef _WIN32
-    fs::remove(target,ec);ec.clear();
+    fs::path backup=target;
+    backup += ".backup";
+    fs::remove(backup,ec);
+    ec.clear();
+    const bool hadTarget=fs::exists(target,ec)&&!ec;
+    if(hadTarget){
+        fs::rename(target,backup,ec);
+        if(ec){fs::remove(staged);error="Cannot preserve the previous version binary: "+ec.message();return false;}
+    }
+    fs::rename(staged,target,ec);
+    if(ec){
+        const std::string reason=ec.message();
+        if(hadTarget){std::error_code restoreError;fs::rename(backup,target,restoreError);}
+        fs::remove(staged);
+        error="Cannot activate version binary: "+reason;
+        return false;
+    }
+    fs::remove(backup,ec);
+    return true;
+#else
+    fs::rename(staged,target,ec);
+    if(ec){fs::remove(staged);error="Cannot activate version binary: "+ec.message();return false;}
+    return true;
 #endif
-    fs::rename(staged,target,ec);if(ec){fs::remove(staged);error="Cannot activate version binary: "+ec.message();return false;}return true;
 }
 std::string checksumFromList(const std::string& list,const std::string& name){std::istringstream in(list);std::string line;while(std::getline(in,line)){line=trim(line);if(line.empty())continue;std::istringstream row(line);std::string hash,file;row>>hash>>file;if(!file.empty()&&file[0]=='*')file.erase(file.begin());if(file==name&&hash.size()==64)return hash;}return {};}
 int fail(const std::string& code,const std::string& message){std::cerr<<"error["<<code<<"]: "<<message<<"\n";return 1;}
-} // namespace
+} 
 std::string currentVersion(){return ASTRA_VERSION;}
 std::string installedRuntimePath(){return targetPath().string();}
 int installBuiltRuntime(const std::string& sourcePath) {
@@ -352,4 +373,4 @@ int listAvailableVersions() {
     }
     curl_global_cleanup();return 0;
 }
-} // namespace astra
+} 

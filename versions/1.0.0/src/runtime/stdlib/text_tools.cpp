@@ -115,7 +115,7 @@ Value stringifyQuery(const Value& value) {
     }
     return Value(out);
 }
-} // namespace
+} 
 
 Value createBufferBuiltin(const std::string& name) {
     if (name == "std:buffer.byteLength") return native([](const Args& a) { need(a,1,"buffer.byteLength"); return Value(static_cast<int64_t>(stringArg(a,0,"buffer.byteLength").size())); });
@@ -143,4 +143,4 @@ Value createValidationBuiltin(const std::string& name) {
     if (name == "std:validate.isEmpty") return native([](const Args& a) { need(a,1,"validate.isEmpty"); if(std::holds_alternative<Undefined>(a[0].data)||std::holds_alternative<Null>(a[0].data))return Value(true); if(auto s=std::get_if<std::string>(&a[0].data))return Value(s->empty()); if(auto v=std::get_if<std::shared_ptr<Array>>(&a[0].data))return Value((*v)->items.empty()); if(auto o=std::get_if<std::shared_ptr<Object>>(&a[0].data))return Value((*o)->fields.empty()); return Value(false); });
     return undefinedValue();
 }
-} // namespace astra
+} 

@@ -1,4 +1,3 @@
-// Core module namespaces are built into the runtime and need no import.
 let hash = crypto.sha256("abc");
 let maxValue = math.max(1, 2, 3);
 let encoded = json.stringify({ ready: true });

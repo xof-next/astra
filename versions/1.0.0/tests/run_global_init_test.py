@@ -14,12 +14,17 @@ with tempfile.TemporaryDirectory(prefix="astra-global-") as temp:
     work = pathlib.Path(temp) / "outside-repo"
     home.mkdir(); work.mkdir()
     env = os.environ.copy(); env["HOME"] = str(home)
+    termux = bool(env.get("ANDROID_ROOT") or "com.termux" in env.get("PREFIX", ""))
+    if termux:
+        prefix = pathlib.Path(temp) / "termux-prefix"
+        (prefix / "bin").mkdir(parents=True)
+        env["PREFIX"] = str(prefix)
     result = subprocess.run([str(binary), "init"], cwd=repo, env=env, capture_output=True, text=True)
     if result.returncode != 0:
         raise SystemExit("global init failed:\n" + result.stdout + result.stderr)
-    installed = home / ".local" / "bin" / "astra"
+    installed = pathlib.Path(env["PREFIX"]) / "bin" / "astra" if termux else home / ".local" / "bin" / "astra"
     if not installed.is_file() or not os.access(installed, os.X_OK):
-        raise SystemExit("global init did not create an executable in ~/.local/bin")
+        raise SystemExit(f"global init did not create an executable in {installed.parent}")
     stored = home / ".astra" / "versions" / "1.0.0" / "astra"
     if not stored.is_file() or not os.access(stored, os.X_OK):
         raise SystemExit("global init did not preserve the versioned runtime")

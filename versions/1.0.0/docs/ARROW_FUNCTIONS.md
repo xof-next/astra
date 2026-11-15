@@ -1,6 +1,6 @@
 # Functions and closures
 
-Astra supports named functions (`fn` and the JavaScript-compatible `function` alias), arrow functions, and Rust-style synchronous closures.
+Astra supports named functions (`fn` and the `function` declaration alias), arrow functions, and pipe-parameter synchronous closures.
 
 ## Normal arrow function
 
@@ -21,7 +21,7 @@ const multiply = (a, b) => {
 };
 ```
 
-## Rust-style synchronous closure
+## pipe-parameter synchronous closure
 
 ```astra
 let increment = |value| value + 1;

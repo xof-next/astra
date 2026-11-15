@@ -12,7 +12,7 @@ Implemented in this expanded preview:
 - Synchronous in-process event listeners through `events`.
 - Gzip/zlib compression and CRC-32 with bounded decompression.
 - Byte-string, query-string and common input-validation helpers.
-- Named functions, JavaScript-style `function` declaration alias, expression/block arrow functions, basic lexical closures, and Rust-style synchronous closures (`|value| expression`).
+- Named functions, `function` declaration alias, expression/block arrow functions, basic lexical closures, and pipe-parameter synchronous closures (`|value| expression`).
 - Core standard namespaces globally available without `import`; local declarations shadow these names lexically.
 - CLI `install`, `update`, `version`, global bootstrap via `astra init` from a source checkout, `init --project`, task aliases in `[devDependencies]`, direct filename shorthand, `run`, `check`, and `modules` commands.
 
@@ -23,7 +23,7 @@ Not implemented in this preview:
 - Promise-based asynchronous execution, task scheduling, an event loop, `async fn`, UDP sockets, WebSocket, HTTP keep-alive, chunked request decoding, HTTP/2, HTTP/3, TLS server sockets, client certificates and custom TLS callbacks. `await` in this preview only accepts completed synchronous values inside `sync fn`; it does not make blocking operations non-blocking. Astra rejects `async` declarations with `E8001` and rejects `await` outside sync functions with `E8002`.
 - `switch`, `break`, `continue`, classes, structs, generics, typed function signatures, advanced closure semantics beyond basic lexical capture, and destructuring.
 - Full static type checker, complete parser diagnostics, full stack traces and source maps.
-- Method-style array calls such as `items.push(...)`, and full JavaScript coercion/short-circuit behavior.
+- Method-style array calls such as `items.push(...)`, and the full set of coercion and short-circuit rules.
 - Full Unicode-aware string operations. Current basic string helpers and `std:format` case conversion operate on UTF-8 bytes / ASCII case rules.
 - Sandboxed filesystem access or secure random-number generation. The HTTP server is a sequential preview server, not a high-concurrency production server; use a reverse proxy and OS-level limits before exposing it beyond a trusted development network.
 

@@ -109,7 +109,7 @@ int initProject(const fs::path& directory) {
     std::cout << "Created Astra project at " << directory.string() << "\nFiles: Astra.toml, main.astra, test.astra, lib/test.astra\nRun: astra\nTask: astra test\nFile: astra test.astra\n"; return 0;
 }
 bool parseTaskCommand(const std::string& command, fs::path& source) {
-    // Never invoke a shell: project task aliases can only dispatch Astra files.
+    
     std::istringstream input(command); std::vector<std::string> parts;
     for (std::string part; input >> part;) parts.push_back(part);
     if (parts.size() == 2 && parts[0] == "astra") return resolveSource(parts[1], source);

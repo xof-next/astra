@@ -14,7 +14,8 @@
         "macos-x86_64": "astra-macos-x86_64",
         "macos-aarch64": "astra-macos-aarch64",
         "windows-x86_64": "astra-windows-x86_64.exe",
-        "windows-aarch64": "astra-windows-aarch64.exe"
+        "windows-aarch64": "astra-windows-aarch64.exe",
+        "android-aarch64": "astra-android-aarch64"
       }
     },
     "1.0.1": {

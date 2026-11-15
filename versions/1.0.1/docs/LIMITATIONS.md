@@ -14,7 +14,7 @@ Implemented in this expanded preview:
 - Byte-string, query-string and common input-validation helpers.
 - Named functions (`fn` and `function`), expression/block arrow functions, lexical closures, and synchronous pipe-parameter closures (`|value| expression`).
 - Core standard namespaces globally available without `import`; local declarations shadow these names lexically.
-- CLI `install`, `update`, `version`, global bootstrap via `astra init` from a source checkout, `init --project`, task aliases in `[devDependencies]`, direct filename shorthand, `run`, `check`, and `modules` commands.
+- CLI `install`, `update`, `versions`, `use`, global bootstrap via `astra init` from a source checkout, `init --project`, the persistent REPL, project scripts in `[scripts]`, direct file execution with `astra file` or a filename, `run`, `check`, and `modules` commands.
 
 Not implemented in this preview:
 
@@ -31,7 +31,7 @@ Not implemented in this preview:
 
 ## Runtime updater readiness
 
-`astra install` and `astra update` are implemented against the future `xof-next/astra` GitHub Releases endpoint. The repository has not been published yet, so the updater cannot download a release in this snapshot. It requires per-platform executable release assets and SHA-256 digests/checksum manifest; see [CLI.md](CLI.md). These commands do not install project dependencies.
+`astra install`, `astra update`, `astra versions`, and `astra use` use the root `pack.json` registry and the matching GitHub Release. Each installable version requires a published asset for the current platform and a SHA-256 digest or checksum manifest. The release workflow rebuilds changed versions and replaces their releases only after all platform builds succeed; see [CLI.md](CLI.md). These commands do not install project dependencies.
 
 The runtime installs as one Astra executable in the user's global bin directory. Ordinary application projects only need `.astra` files and optionally `Astra.toml`; C++ source, CMake, compiler headers and standard-library source files are not copied into each project. A platform binary can still rely on native operating-system libraries unless its release build links those dependencies statically.
 

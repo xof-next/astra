@@ -3,9 +3,9 @@
 #include <string>
 
 namespace astra {
-// Returns Undefined when the requested native export is not provided here.
+
 Value createAdvancedBuiltin(const std::string& qualifiedName);
-// Stateful standard modules (currently std:events) are created as a namespace.
+
 Value createAdvancedModule(const std::string& moduleName);
 Value createBufferBuiltin(const std::string& qualifiedName);
 Value createCompressionBuiltin(const std::string& qualifiedName);

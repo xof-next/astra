@@ -102,7 +102,7 @@ std::string htmlEscape(const std::string& input) {
 struct MimeEntry { const char* extension; const char* type; };
 const std::vector<MimeEntry>& mimeEntries() {
     static const std::vector<MimeEntry> entries = {
-        // Web documents and source formats
+        
         {".html","text/html"},{".htm","text/html"},{".shtml","text/html"},{".xhtml","application/xhtml+xml"},
         {".css","text/css"},{".js","text/javascript"},{".mjs","text/javascript"},{".cjs","text/javascript"},
         {".jsx","text/jsx"},{".ts","text/typescript"},{".tsx","text/tsx"},{".json","application/json"},{".map","application/json"},{".jsonld","application/ld+json"},{".webmanifest","application/manifest+json"},
@@ -113,13 +113,13 @@ const std::vector<MimeEntry>& mimeEntries() {
         {".rtf","application/rtf"},{".ics","text/calendar"},{".vcf","text/vcard"},{".sql","application/sql"},
         {".graphql","application/graphql"},{".gql","application/graphql"},{".sh","application/x-sh"},
         {".php","application/x-httpd-php"},{".wasm","application/wasm"},
-        // Images
+        
         {".apng","image/apng"},{".avif","image/avif"},{".bmp","image/bmp"},{".gif","image/gif"},
         {".heic","image/heic"},{".heif","image/heif"},{".jxl","image/jxl"},{".jp2","image/jp2"},
         {".jpg","image/jpeg"},{".jpeg","image/jpeg"},{".jpe","image/jpeg"},{".png","image/png"},
         {".svg","image/svg+xml"},{".svgz","image/svg+xml"},{".tif","image/tiff"},{".tiff","image/tiff"},
         {".webp","image/webp"},{".ico","image/vnd.microsoft.icon"},{".cur","image/vnd.microsoft.icon"},
-        // Audio and video
+        
         {".aac","audio/aac"},{".aif","audio/aiff"},{".aiff","audio/aiff"},{".mid","audio/midi"},
         {".midi","audio/midi"},{".m4a","audio/mp4"},{".mp3","audio/mpeg"},{".oga","audio/ogg"},
         {".ogg","audio/ogg"},{".opus","audio/opus"},{".wav","audio/wav"},{".weba","audio/webm"},
@@ -127,16 +127,16 @@ const std::vector<MimeEntry>& mimeEntries() {
         {".mpeg","video/mpeg"},{".mpg","video/mpeg"},{".ogv","video/ogg"},{".mov","video/quicktime"},
         {".webm","video/webm"},{".avi","video/x-msvideo"},{".mkv","video/x-matroska"},
         {".3gp","video/3gpp"},{".3g2","video/3gpp2"},{".tsvideo","video/mp2t"},{".m2ts","video/mp2t"},
-        // Fonts
+        
         {".otf","font/otf"},{".ttf","font/ttf"},{".ttc","font/collection"},{".woff","font/woff"},{".woff2","font/woff2"},
-        // Archives and compressed data
+        
         {".tar.gz","application/gzip"},{".tgz","application/gzip"},{".br","application/brotli"},
         {".gz","application/gzip"},{".bz","application/x-bzip"},{".bz2","application/x-bzip2"},
         {".xz","application/x-xz"},{".zst","application/zstd"},{".7z","application/x-7z-compressed"},
         {".rar","application/vnd.rar"},{".zip","application/zip"},{".tar","application/x-tar"},
         {".jar","application/java-archive"},{".war","application/java-archive"},{".epub","application/epub+zip"},
         {".dmg","application/x-apple-diskimage"},{".iso","application/x-iso9660-image"},{".bin","application/octet-stream"},
-        // Documents and Office formats
+        
         {".pdf","application/pdf"},{".doc","application/msword"},
         {".docx","application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
         {".xls","application/vnd.ms-excel"},
@@ -146,7 +146,7 @@ const std::vector<MimeEntry>& mimeEntries() {
         {".odt","application/vnd.oasis.opendocument.text"},{".ods","application/vnd.oasis.opendocument.spreadsheet"},
         {".odp","application/vnd.oasis.opendocument.presentation"},{".pages","application/x-iwork-pages-sffpages"},
         {".numbers","application/x-iwork-numbers-sffnumbers"},{".key","application/x-iwork-keynote-sffkey"},
-        // Common application payloads and binaries
+        
         {".bin","application/octet-stream"},{".exe","application/vnd.microsoft.portable-executable"},
         {".dll","application/vnd.microsoft.portable-executable"},{".so","application/octet-stream"},
         {".dylib","application/octet-stream"},{".apk","application/vnd.android.package-archive"},
@@ -188,7 +188,7 @@ void validateCookieAttribute(const std::string& value, const std::string& label)
     if (std::any_of(value.begin(), value.end(), [](unsigned char c) { return c < 0x20 || c == 0x7f || c == ';'; }))
         throw std::runtime_error("cookie.serialize option `" + label + "` contains an invalid character");
 }
-} // namespace
+} 
 
 Value createWebBuiltin(const std::string& name) {
     if (name == "std:html.escape") return native([](const Args& args) { need(args, 1, "html.escape"); return Value(htmlEscape(stringArg(args, 0, "html.escape"))); });
@@ -304,4 +304,4 @@ Value createWebBuiltin(const std::string& name) {
     });
     return undefinedValue();
 }
-} // namespace astra
+} 

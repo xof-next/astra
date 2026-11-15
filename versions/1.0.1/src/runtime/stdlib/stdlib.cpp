@@ -42,7 +42,7 @@ int64_t integer(const Value& v) {
         } catch (const std::out_of_range&) {
             throw std::runtime_error("Integer conversion is out of range");
         } catch (const std::invalid_argument&) {
-            // Fall through to the normal numeric conversion diagnostic.
+            
         }
     }
     const double d = number(v);

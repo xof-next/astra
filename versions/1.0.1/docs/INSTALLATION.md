@@ -93,7 +93,7 @@ ctest --test-dir build --output-on-failure --parallel 2 --timeout 60
 ./build/astra --version
 ```
 
-Use a low build parallelism value on phones with limited memory. Termux runs in Android's application environment and does not provide the same service-management or privileged networking model as a typical Linux server. Do not assume a Termux binary can be copied to Ubuntu, Debian, or another Android ABI environment.
+Use `ASTRA_BUILD_JOBS=1` on phones with limited memory. Termux runs in Android's application environment and does not provide the same service-management or privileged networking model as a typical Linux server. Do not assume a Termux binary can be copied to Ubuntu, Debian, or another Android ABI environment.
 
 ## Install the built executable
 

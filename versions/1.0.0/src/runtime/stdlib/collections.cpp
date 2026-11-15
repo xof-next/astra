@@ -43,7 +43,7 @@ std::string uniqueKey(const Value& value, size_t occurrence) {
     if (auto item = std::get_if<std::shared_ptr<Array>>(&value.data)) return "a:" + std::to_string(reinterpret_cast<uintptr_t>(item->get()));
     if (auto item = std::get_if<std::shared_ptr<Object>>(&value.data)) return "o:" + std::to_string(reinterpret_cast<uintptr_t>(item->get()));
     if (auto item = std::get_if<std::shared_ptr<Function>>(&value.data)) return "fn:" + std::to_string(reinterpret_cast<uintptr_t>(item->get()));
-    // Native std::function has no portable identity operation; retain each occurrence.
+    
     return "native:" + std::to_string(occurrence);
 }
 std::string groupKey(const Value& value) {
@@ -70,7 +70,7 @@ void flattenInto(const std::shared_ptr<Array>& input, int64_t depth, std::vector
         output.push_back(item);
     }
 }
-} // namespace
+} 
 
 Value createCollectionsBuiltin(const std::string& name) {
     if (name == "std:collections.unique") return native([](const Args& args) {
@@ -148,4 +148,4 @@ Value createCollectionsBuiltin(const std::string& name) {
     });
     return undefinedValue();
 }
-} // namespace astra
+} 

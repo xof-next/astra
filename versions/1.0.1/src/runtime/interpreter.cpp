@@ -4,10 +4,12 @@
 #include "astra/modules.hpp"
 #include "astra/stdlib.hpp"
 #include "astra/value.hpp"
+#include "astra/updater.hpp"
 #include <cmath>
 #include <cstdio>
 #include <algorithm>
 #include <fstream>
+#include <iostream>
 #include <filesystem>
 #include <map>
 #include <limits>
@@ -129,7 +131,7 @@ std::shared_ptr<Environment> makeChildEnvironment(const std::shared_ptr<Environm
     auto child = std::make_shared<Environment>();
     child->parent = parent;
     if (parent) { std::lock_guard<std::mutex> lock(parent->mutex); parent->children.emplace_back(child); }
-    // Keep every scope alive until the execution-wide cycle cleanup runs.
+    
     if (activeEnvironmentRegistry) activeEnvironmentRegistry->push_back(child);
     return child;
 }
@@ -148,9 +150,9 @@ void clearEnvironmentTree(const std::vector<std::shared_ptr<Environment>>& roots
     std::unordered_set<const Object*> visitedObjects;
     std::unordered_set<const Function*> visitedFunctions;
 
-    // Walk the full runtime object graph before clearing it. Environments keep
-    // child scopes weakly, while closures, arrays and objects may form strong
-    // reference cycles that ordinary shared_ptr destruction cannot collect.
+    
+    
+    
     while (!pendingEnvironments.empty() || !pendingValues.empty()) {
         while (!pendingEnvironments.empty()) {
             auto current = std::move(pendingEnvironments.back());
@@ -188,7 +190,7 @@ void clearEnvironmentTree(const std::vector<std::shared_ptr<Environment>>& roots
         }
     }
 
-    // Break collection and closure cycles before releasing environment roots.
+    
     for (auto& array : arrays) array->items.clear();
     for (auto& object : objects) {
         object->fields.clear();
@@ -688,6 +690,7 @@ public:
     Parser(std::vector<Token> t,std::shared_ptr<Environment>e,std::string f,std::vector<std::string>l,bool allowAwait=false,std::shared_ptr<ModuleLoader> loader={},std::shared_ptr<ModuleRecord> module={},int functionDepth=0):tokens_(std::move(t)),env_(std::move(e)),file_(std::move(f)),sourceLines_(std::move(l)),allowAwait_(allowAwait),functionDepth_(functionDepth),loader_(std::move(loader)),module_(std::move(module)){if(tokens_.empty()||tokens_.back().kind!=TokenKind::End)tokens_.push_back({TokenKind::End,"",1,1});}
     void executeAll(){try{hoistFunctions();while(peek().kind!=TokenKind::End)statement();}catch(RuntimeFailure& error){if(error.file.empty()){error.file=file_;if(error.token.line>0&&static_cast<size_t>(error.token.line)<=sourceLines_.size())error.source=sourceLines_[static_cast<size_t>(error.token.line-1)];}throw;}}
     Value callMain(){Value m=env_->get("main");if(std::holds_alternative<Undefined>(m.data))return Value{};return call(m,{});}
+    Value evaluateInteractiveExpression(){Value value=expression();match(";");if(peek().kind!=TokenKind::End)fail("E1001","Unexpected token after expression: `"+peek().text+"`");return value;}
     void statement(){
         if(match(";")) return;
         if(match("import")){importStatement();return;}
@@ -797,16 +800,168 @@ std::shared_ptr<ModuleRecord> ModuleLoader::load(const std::string& request,cons
 }
 std::shared_ptr<Object> callableObject(NativeFunction f){auto o=std::make_shared<Object>();o->fields["__call"]=Value(std::move(f));return o;}
 std::shared_ptr<Environment> createGlobalEnvironment(){auto e=std::make_shared<Environment>();auto add=[&](const std::string&n){Value v=createGlobal(n,{});if(!std::holds_alternative<Undefined>(v.data))e->define(n,v,true);};for(auto n:{"console","print","Number","String","str","int","float","bool","bigint","BigInt","type","len","range","input","isUndefined","assert","Error","Array","Object"})add(n);
- // Number is both callable and a namespace of constants.
+ 
  auto numberObj=std::get<std::shared_ptr<Object>>(e->get("Number").data);numberObj->fields["__call"]=NativeFunction([](const std::vector<Value>&a){if(a.empty())throw std::runtime_error("Number expects a value");std::string s=valueToString(a[0]);try{size_t n=0;double d=std::stod(s,&n);if(n!=s.size())throw std::runtime_error("Invalid Number input");const long double wide=static_cast<long double>(d);const long double minimum=static_cast<long double>(INT64_MIN);const long double maximumExclusive=-minimum;if(std::isfinite(d)&&std::floor(d)==d&&wide>=minimum&&wide<maximumExclusive)return Value(static_cast<int64_t>(d));return Value(d);}catch(const std::exception&e){throw std::runtime_error(std::string("Cannot convert to Number: ")+e.what());}});e->values["Number"]=Value(numberObj);
- // print is callable and supports print.json(value).
+ 
  auto printObj=callableObject(std::get<NativeFunction>(createGlobal("print",{}).data));printObj->fields["json"]=NativeFunction([](const std::vector<Value>&a){if(a.empty())throw std::runtime_error("print.json expects a value");std::cout<<valueToJson(a[0],true)<<'\n';return Value(Null{});});e->values["print"]=Value(printObj);
- // Core standard namespaces are available globally, but live in a parent scope.
- // A project may shadow any of them with fn/let/const without mutating the builtin.
+ 
+ 
  for (const auto& name : {"launch","server","dns","tcp","events","json","math","crypto","fs","path","tls"}) {
      e->define(name,createBuiltinModule(std::string("std:")+name,{}),true);
  }
  return e;}
 }
 bool runFile(const std::string&path,const RunOptions&opts){std::ifstream f(path);if(!f){report({"E9001","Cannot open source file",path,"",1,1});return false;}std::ostringstream ss;ss<<f.rdbuf();std::string src=ss.str();std::vector<std::string>lines;std::istringstream ls(src);std::string line;while(std::getline(ls,line))lines.push_back(line);Lexer lx(src);auto tokens=lx.scan();if(!lx.errors().empty()){for(const auto&lexError:lx.errors()){std::string message;Token token=lexerDiagnosticToken(lexError,message);std::string sourceLine=token.line>0&&static_cast<size_t>(token.line)<=lines.size()?lines[static_cast<size_t>(token.line-1)]:"";report({"E1002",message,path,sourceLine,token.line,token.column});}return false;}auto globals=createGlobalEnvironment();EnvironmentCleanup cleanup{globals};auto env=makeChildEnvironment(globals);auto loader=std::make_shared<ModuleLoader>(globals);auto module=std::make_shared<ModuleRecord>();std::error_code pathError;auto canonical=std::filesystem::weakly_canonical(std::filesystem::absolute(path),pathError);module->path=pathError?std::filesystem::absolute(path).lexically_normal().string():canonical.string();module->environment=env;loader->modules[module->path]=module;try{predeclareModuleExports(tokens,module);Parser p(tokens,env,path,lines,false,loader,module);p.executeAll();module->state=ModuleRecord::State::Loaded;Value mainFunction=env->get("main");if(auto fn=std::get_if<std::shared_ptr<Function>>(&mainFunction.data)){if(!(*fn)->parameters.empty())throw RuntimeFailure("main() must not require arguments",Token{},"E5001");}Value mainResult=p.callMain();resolveAwait(mainResult);waitForAsyncTasks();if(opts.verbose)std::cout<<"Astra: execution completed\n";return true;}catch(const RuntimeFailure&e){module->state=ModuleRecord::State::Failed;waitForAsyncTasks();std::string diagnosticFile=e.file.empty()?path:e.file;std::string srcLine=e.source.empty()?(e.token.line>0&&static_cast<size_t>(e.token.line)<=lines.size()?lines[e.token.line-1]:""):e.source;report({e.code,e.what(),diagnosticFile,srcLine,e.token.line,e.token.column});return false;}catch(const std::exception&e){module->state=ModuleRecord::State::Failed;waitForAsyncTasks();report({"E6009",e.what(),path,"",1,1});return false;}catch(const ReturnSignal&){module->state=ModuleRecord::State::Failed;waitForAsyncTasks();report({"E5003","return used outside a function",path,"",1,1});return false;}}
+
+namespace {
+bool replNeedsMoreInput(const std::string& source) {
+    std::vector<char> openings;
+    char quote = 0;
+    bool escaped = false;
+    bool lineComment = false;
+    bool blockComment = false;
+    for (size_t i = 0; i < source.size(); ++i) {
+        const char c = source[i];
+        const char next = i + 1 < source.size() ? source[i + 1] : 0;
+        if (lineComment) {
+            if (c == '\n') lineComment = false;
+            continue;
+        }
+        if (blockComment) {
+            if (c == '*' && next == '/') { blockComment = false; ++i; }
+            continue;
+        }
+        if (quote) {
+            if (escaped) escaped = false;
+            else if (c == '\\') escaped = true;
+            else if (c == quote) quote = 0;
+            continue;
+        }
+        if (c == '#' || (c == '/' && next == '/')) {
+            lineComment = true;
+            if (c == '/') ++i;
+            continue;
+        }
+        if (c == '/' && next == '*') { blockComment = true; ++i; continue; }
+        if (c == '\'' || c == '"' || c == '`') { quote = c; continue; }
+        if (c == '(' || c == '[' || c == '{') openings.push_back(c);
+        else if (c == ')' || c == ']' || c == '}') {
+            if (!openings.empty()) openings.pop_back();
+        }
+    }
+    if (quote || blockComment || !openings.empty()) return true;
+    const size_t first = source.find_first_not_of(" \t\r\n");
+    const std::string trimmed = first == std::string::npos ? std::string{} : source.substr(first, source.find_last_not_of(" \t\r\n") - first + 1);
+    if (trimmed.empty()) return false;
+    const std::string endings[] = {"=", "+", "-", "*", "/", "%", ".", "?", ":", ",", "&&", "||", "??", "=>"};
+    for (const auto& ending : endings) {
+        if (trimmed.size() >= ending.size() && trimmed.compare(trimmed.size() - ending.size(), ending.size(), ending) == 0) return true;
+    }
+    return false;
+}
+bool replExpressionInput(const std::vector<Token>& tokens) {
+    if (tokens.empty() || tokens.front().kind == TokenKind::End) return false;
+    const std::string first = tokens.front().text;
+    const std::set<std::string> statements = {"import", "pub", "async", "sync", "fn", "function", "let", "const", "if", "else", "while", "for", "try", "catch", "throw", "return", "delete"};
+    if (statements.count(first) || first == "{") return false;
+    int depth = 0;
+    for (const auto& token : tokens) {
+        if (token.kind == TokenKind::End) break;
+        if (token.text == "(" || token.text == "[" || token.text == "{") ++depth;
+        else if (token.text == ")" || token.text == "]" || token.text == "}") --depth;
+        if (depth == 0 && (token.text == "=" || token.text == "+=" || token.text == "-=" || token.text == "*=" || token.text == "/=" || token.text == "%=" || token.text == "++" || token.text == "--")) return false;
+    }
+    return true;
+}
+void printReplValue(const Value& value) {
+    if (std::holds_alternative<Undefined>(value.data) || std::holds_alternative<Null>(value.data)) return;
+    if (std::holds_alternative<std::shared_ptr<Array>>(value.data) || std::holds_alternative<std::shared_ptr<Object>>(value.data)) std::cout << valueToJson(value, true) << '\n';
+    else if (std::holds_alternative<std::shared_ptr<Function>>(value.data) || std::holds_alternative<NativeFunction>(value.data)) std::cout << "[Function]\n";
+    else std::cout << valueToString(value) << '\n';
+}
+}
+int runRepl() {
+    auto globals = createGlobalEnvironment();
+    EnvironmentCleanup cleanup{globals};
+    auto environment = makeChildEnvironment(globals);
+    auto loader = std::make_shared<ModuleLoader>(globals);
+    auto module = std::make_shared<ModuleRecord>();
+    std::error_code pathError;
+    const auto replFile = std::filesystem::absolute(std::filesystem::current_path(pathError) / ".astra-repl.astra", pathError).lexically_normal();
+    module->path = pathError ? ".astra-repl.astra" : replFile.string();
+    module->environment = environment;
+    loader->modules[module->path] = module;
+
+    std::cout << "Welcome to Astra v" << currentVersion() << ".\nType \".help\" for more information.\n\n";
+    std::string buffer;
+    std::string line;
+    while (true) {
+        std::cout << (buffer.empty() ? "> " : "... ") << std::flush;
+        if (!std::getline(std::cin, line)) break;
+        if (buffer.empty() && !line.empty() && line.front() == '.') {
+            if (line == ".exit") break;
+            if (line == ".help") {
+                std::cout << "Commands:\n  .help      Show REPL help\n  .version   Show Astra version\n  .clear     Clear the terminal\n  .exit      Exit the REPL\n";
+                continue;
+            }
+            if (line == ".version") {
+                std::cout << "Astra v" << currentVersion() << "\n";
+                continue;
+            }
+            if (line == ".clear") {
+                std::cout << "\033[2J\033[H" << std::flush;
+                continue;
+            }
+            std::cout << "Unknown REPL command: " << line << "\n";
+            continue;
+        }
+        if (!buffer.empty()) buffer.push_back('\n');
+        buffer += line;
+        if (replNeedsMoreInput(buffer)) continue;
+        if (buffer.find_first_not_of(" \t\r\n") == std::string::npos) { buffer.clear(); continue; }
+
+        std::vector<std::string> lines;
+        std::istringstream sourceLines(buffer);
+        for (std::string sourceLine; std::getline(sourceLines, sourceLine);) lines.push_back(sourceLine);
+        Lexer lexer(buffer);
+        auto tokens = lexer.scan();
+        if (!lexer.errors().empty()) {
+            for (const auto& lexicalError : lexer.errors()) {
+                std::string message;
+                Token token = lexerDiagnosticToken(lexicalError, message);
+                const std::string sourceLine = token.line > 0 && static_cast<size_t>(token.line) <= lines.size() ? lines[static_cast<size_t>(token.line - 1)] : "";
+                report({"E1002", message, module->path, sourceLine, token.line, token.column});
+            }
+            buffer.clear();
+            continue;
+        }
+        try {
+            if (replExpressionInput(tokens)) {
+                Parser parser(tokens, environment, module->path, lines, false, loader, module);
+                printReplValue(parser.evaluateInteractiveExpression());
+            } else {
+                predeclareModuleExports(tokens, module);
+                Parser parser(tokens, environment, module->path, lines, false, loader, module);
+                parser.executeAll();
+                module->state = ModuleRecord::State::Loaded;
+            }
+            waitForAsyncTasks();
+        } catch (const RuntimeFailure& error) {
+            module->state = ModuleRecord::State::Loading;
+            const std::string sourceLine = error.source.empty() && error.token.line > 0 && static_cast<size_t>(error.token.line) <= lines.size() ? lines[static_cast<size_t>(error.token.line - 1)] : error.source;
+            report({error.code, error.what(), error.file.empty() ? module->path : error.file, sourceLine, error.token.line, error.token.column});
+        } catch (const std::exception& error) {
+            module->state = ModuleRecord::State::Loading;
+            report({"E6009", error.what(), module->path, "", 1, 1});
+        } catch (const ReturnSignal&) {
+            module->state = ModuleRecord::State::Loading;
+            report({"E5003", "return used outside a function", module->path, "", 1, 1});
+        }
+        buffer.clear();
+    }
+    if (!buffer.empty()) std::cerr << "error[E1001]: Incomplete REPL input.\n";
+    waitForAsyncTasks();
+    return 0;
+}
+
 }

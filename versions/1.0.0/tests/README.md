@@ -12,7 +12,7 @@ ctest --test-dir build --output-on-failure
 
 Some tests are intentionally invalid inputs and are marked as expected failures. `all-modules.astra` imports and invokes representative APIs across all 34 registered modules. `run_launch_test.py` starts a local HTTP server and tests GET, POST, HEAD, custom headers, redirects, status handling and response-size limits. If Python 3 and the OpenSSL CLI are available, `run_tls_test.py` creates a local test certificate and checks trusted certificate verification plus HTTPS-to-HTTP redirect blocking.
 
-`closures.astra` verifies captured mutable state. `arrows-global.astra` exercises regular arrows, block arrows, Rust-style closures, zero-argument closures, built-in module globals and local shadowing. `run_init_test.py` verifies that `astra init` creates only `Astra.toml` and `main.astra`, and that the new project immediately runs.
+`closures.astra` verifies captured mutable state. `arrows-global.astra` exercises regular arrows, block arrows, pipe-parameter closures, zero-argument closures, built-in module globals and local shadowing. `run_init_test.py` verifies that `astra init` creates only `Astra.toml` and `main.astra`, and that the new project immediately runs.
 
 The suite has been run under AddressSanitizer and UndefinedBehaviorSanitizer with leak detection enabled. The GitHub release updater is compile-checked but cannot be end-to-end tested until the `xof-next/astra` repository and its release assets exist.
 

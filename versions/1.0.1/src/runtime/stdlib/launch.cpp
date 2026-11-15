@@ -174,7 +174,7 @@ HttpResponse perform(const std::string& method, const std::string& url, const st
     curl_easy_setopt(handle.value, CURLOPT_MAXREDIRS, maxRedirects);
 #if LIBCURL_VERSION_NUM >= 0x075500
     curl_easy_setopt(handle.value, CURLOPT_PROTOCOLS_STR, "http,https");
-    // Do not allow an HTTPS request to be downgraded by a redirect.
+    
     curl_easy_setopt(handle.value, CURLOPT_REDIR_PROTOCOLS_STR, url.rfind("https://", 0) == 0 ? "https" : "http,https");
 #else
     curl_easy_setopt(handle.value, CURLOPT_PROTOCOLS, static_cast<long>(CURLPROTO_HTTP | CURLPROTO_HTTPS));
@@ -328,7 +328,7 @@ std::string upperAscii(std::string s) {
     return s;
 }
 
-} // namespace
+} 
 
 Value createAdvancedBuiltin(const std::string& name) {
     Value networkBuiltin = createNetworkBuiltin(name);
@@ -400,4 +400,4 @@ Value createAdvancedBuiltin(const std::string& name) {
     return undefinedValue();
 }
 
-} // namespace astra
+} 

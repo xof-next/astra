@@ -26,6 +26,8 @@ Version 1.0.1 includes the language/runtime corrections documented below, plus b
 - Lexical block scopes, closures, hoisted function declarations, object parameter destructuring, module imports and exports, `sync fn` and Future-backed `await`.
 - 37 built-in standard modules and 172 registered exports, including networking, HTTP clients, HTTP server routing, DNS, TCP, TLS clients, JSON, filesystem access, cryptography, compression, text processing, and collections.
 - Version-aware CLI installation through the repository-root `pack.json` manifest.
+- Persistent interactive REPL with multiline input and expression results.
+- Project scripts declared separately from package dependencies.
 - HTTP server with a fixed worker pool, bounded pending queue, explicit overload responses, per-IP and total connection limits, request-rate limits, buffer limits, and an absolute request-read deadline.
 - Optional native `astra.conf` runtime configuration for server and outbound HTTP client defaults, with strict validation and safe built-in defaults.
 - CMake build configuration for POSIX sockets and Windows Winsock.
@@ -90,6 +92,7 @@ The installer places Astra in the user-level executable directory. Add that dire
 ```sh
 astra --version
 astra --help
+astra
 ```
 
 Astra versions are stored separately. The active runtime can be changed without deleting other installed versions:
@@ -130,15 +133,18 @@ pub fn main() {
 }
 ```
 
-Run the project or a source file:
+Start the interactive REPL or run project code:
 
 ```sh
 astra
-astra run main.astra
+astra run
+astra run dev
+astra file main.astra
+astra main.astra
 astra check main.astra
 ```
 
-Astra also supports extensionless source paths with `astra run`. Project task aliases can be declared under `[devDependencies]` in `Astra.toml`; task values are restricted to Astra source invocations and are not executed through a shell.
+Project commands are declared under `[scripts]` in `Astra.toml`. Package entries remain in `[dependencies]` and `[devDependencies]`. Script values must point to Astra source files and are never passed to a shell.
 
 ## Language and runtime
 

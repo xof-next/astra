@@ -60,10 +60,18 @@
 - Added platform-specific installation and build instructions.
 - Updated runtime limitations to distinguish concurrent socket processing from serialized interpreter callback execution.
 
+### CLI and release maintenance
+
+- Added a persistent interactive REPL for `astra` without arguments, including multiline input and expression results.
+- Separated project scripts into `[scripts]` and kept package dependencies in their own manifest sections.
+- Added `astra file`, `astra run <script|file>`, and short command aliases for install, update, run, check, and versions.
+- Added Android ARM64 release assets to every registered version.
+- Rebuilt each version release when its source directory changes, replacing the previous release only after every target build passes.
+
 ### Verification status
 
 - The Debian GNU/Linux 13 x86_64 Release build succeeds in the current validation environment.
-- All 44 CTest cases pass in the current Debian 13 x86_64 environment, including the sync-only `await` and module-binding regression coverage, an absolute request-deadline check, and an oversized-response check.
+- All 46 CTest cases pass in the current Debian 13 x86_64 environment, including interactive REPL, persistent bindings, multiline input, project scripts, file execution, command aliases, sync-only `await`, module binding regression coverage, request deadlines, and response-size checks.
 - Windows, macOS, other Linux libc variants, and Android/Termux have source-build instructions but were not executed in this validation environment.
 - The 1,000-request concurrent integration test is a functional stress smoke test, not a throughput benchmark or a million-requests-per-second certification.
 - The release workflow fixes the Android SDK package/license setup, Windows `min`/`max` macro collision, and macOS `timeval` narrowing errors identified in the previous runner logs.

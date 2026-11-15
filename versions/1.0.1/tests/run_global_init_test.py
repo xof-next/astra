@@ -14,23 +14,28 @@ with tempfile.TemporaryDirectory(prefix="astra-global-") as temp:
     work = pathlib.Path(temp) / "outside-repo"
     home.mkdir(); work.mkdir()
     env = os.environ.copy(); env["HOME"] = str(home)
+    termux = bool(env.get("ANDROID_ROOT") or "com.termux" in env.get("PREFIX", ""))
+    if termux:
+        prefix = pathlib.Path(temp) / "termux-prefix"
+        (prefix / "bin").mkdir(parents=True)
+        env["PREFIX"] = str(prefix)
     result = subprocess.run([str(binary), "init"], cwd=repo, env=env, capture_output=True, text=True)
     if result.returncode != 0:
         raise SystemExit("global init failed:\n" + result.stdout + result.stderr)
-    installed = home / ".local" / "bin" / "astra"
+    installed = pathlib.Path(env["PREFIX"]) / "bin" / "astra" if termux else home / ".local" / "bin" / "astra"
     if not installed.is_file() or not os.access(installed, os.X_OK):
-        raise SystemExit("global init did not create an executable in ~/.local/bin")
+        raise SystemExit(f"global init did not create an executable in {installed.parent}")
     stored = home / ".astra" / "versions" / "1.0.1" / "astra"
     if not stored.is_file() or not os.access(stored, os.X_OK):
         raise SystemExit("global init did not preserve the versioned runtime")
     env["PATH"] = str(installed.parent) + os.pathsep + env.get("PATH", "")
     check = subprocess.run(["astra", "--version"], cwd=work, env=env, capture_output=True, text=True)
-    if check.returncode != 0 or "Astra Script 1.0.1" not in check.stdout:
+    if check.returncode != 0 or "Astra 1.0.1" not in check.stdout:
         raise SystemExit("global astra command is not usable outside repository:\n" + check.stdout + check.stderr)
     use = subprocess.run(["astra", "use", "1.0.1"], cwd=work, env=env, capture_output=True, text=True)
     if use.returncode != 0 or "Now using Astra 1.0.1" not in use.stdout:
         raise SystemExit("version activation failed:\n" + use.stdout + use.stderr)
     after = subprocess.run(["astra", "--version"], cwd=work, env=env, capture_output=True, text=True)
-    if after.returncode != 0 or "Astra Script 1.0.1" not in after.stdout:
+    if after.returncode != 0 or "Astra 1.0.1" not in after.stdout:
         raise SystemExit("active runtime stopped working after astra use:\n" + after.stdout + after.stderr)
 print("global init and version activation: OK")

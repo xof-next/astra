@@ -1,6 +1,6 @@
 # Astra Script v1.0.0 — Native Runtime Preview
 
-Astra is a personal programming-language experiment. Its syntax takes JavaScript as the main reference and uses C-style program structure. This source distribution contains a native C++17 interpreter preview with a lexer, source checker, runtime, arbitrary-precision integers, and 37 built-in modules with 172 registered exports.
+Astra is a programming language designed for compact application and runtime code. This source distribution contains a native C++17 interpreter preview with a lexer, source checker, runtime, arbitrary-precision integers, and 37 built-in modules with 172 registered exports.
 
 > Scope: this build supports an interpreted subset of `.astra`. It does not emit native machine code and is not a production-stable compiler.
 
@@ -156,7 +156,7 @@ function launch(url) {
 }
 ```
 
-The `|value| expression` form is a synchronous Rust-style closure. `sync fn` and `pub sync fn` mark functions where `await` syntax is permitted; `await` must not appear at top level or inside an ordinary `fn`. In this interpreter preview `await` currently unwraps an already-completed value: native HTTP and TCP calls remain blocking and there is no promise scheduler or event loop yet. `async fn` is intentionally not accepted. `const` controls reassignment of the variable, not a different arrow-function type. More examples are in [docs/ARROW_FUNCTIONS.md](docs/ARROW_FUNCTIONS.md).
+The `|value| expression` form is a synchronous pipe-parameter closure. `sync fn` and `pub sync fn` mark functions where `await` syntax is permitted; `await` must not appear at top level or inside an ordinary `fn`. In this interpreter preview `await` currently unwraps an already-completed value: native HTTP and TCP calls remain blocking and there is no promise scheduler or event loop yet. `async fn` is intentionally not accepted. `const` controls reassignment of the variable, not a different arrow-function type. More examples are in [docs/ARROW_FUNCTIONS.md](docs/ARROW_FUNCTIONS.md).
 
 ## Runtime rules
 

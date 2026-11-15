@@ -5,6 +5,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      version:
+        description: Version to rebuild; leave empty to use pack.json new
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -16,31 +21,74 @@ concurrency:
 
 jobs:
   prepare:
-    name: Validate source and release matrix
+    name: Detect changed versions and build matrix
     runs-on: ubuntu-24.04
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
-      version: ${{ steps.matrix.outputs.version }}
+      versions: ${{ steps.matrix.outputs.versions }}
+      has_versions: ${{ steps.matrix.outputs.has_versions }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
 
       - name: Validate pack manifest
         run: python3 scripts/validate-pack.py
 
-      - name: Generate current release matrix
+      - name: Generate release matrix
         id: matrix
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_BEFORE: ${{ github.event.before }}
+          INPUT_VERSION: ${{ inputs.version }}
+          COMMIT_SHA: ${{ github.sha }}
         shell: bash
         run: |
+          set -euo pipefail
           python3 - <<'PY'
           import json
           import os
+          import re
+          import subprocess
           from pathlib import Path
 
           root = Path.cwd()
           pack = json.loads((root / "pack.json").read_text(encoding="utf-8"))
-          version = pack["new"]
-          metadata = pack["versions"][version]
+          versions = pack["versions"]
+          selected = set()
+          event_name = os.environ["EVENT_NAME"]
+          requested = os.environ.get("INPUT_VERSION", "").strip().removeprefix("v")
+          before = os.environ.get("EVENT_BEFORE", "")
+          commit = os.environ["COMMIT_SHA"]
+
+          if event_name == "workflow_dispatch":
+              selected.add(requested or pack["new"])
+          elif before and not re.fullmatch(r"0+", before):
+              changed = subprocess.check_output(["git", "diff", "--name-only", before, commit], text=True).splitlines()
+              for path in changed:
+                  match = re.match(r"^versions/([^/]+)/", path)
+                  if match:
+                      selected.add(match.group(1))
+              if "pack.json" in changed:
+                  previous = subprocess.run(["git", "show", f"{before}:pack.json"], text=True, capture_output=True)
+                  if previous.returncode == 0:
+                      old_pack = json.loads(previous.stdout)
+                      old_versions = old_pack.get("versions", {})
+                      for version, metadata in versions.items():
+                          if old_versions.get(version) != metadata:
+                              selected.add(version)
+                      if old_pack.get("new") != pack.get("new"):
+                          selected.add(pack["new"])
+                  else:
+                      selected.add(pack["new"])
+          else:
+              selected.update(versions)
+
+          unknown = sorted(selected - set(versions))
+          if unknown:
+              raise SystemExit("Version(s) missing from pack.json: " + ", ".join(unknown))
+
           targets = {
               "linux-x86_64": ("ubuntu-24.04", "x64-linux", "linux", ""),
               "linux-aarch64": ("ubuntu-24.04-arm", "arm64-linux", "linux", ""),
@@ -51,40 +99,42 @@ jobs:
               "android-aarch64": ("ubuntu-24.04", "arm64-android", "android", "")
           }
           include = []
-          for platform, asset in sorted(metadata["assets"].items()):
-              if platform not in targets:
-                  raise SystemExit(f"Unsupported release target: {platform}")
-              runner, triplet, family, cmake_arch = targets[platform]
-              include.append({
-                  "version": version,
-                  "source": metadata["path"],
-                  "status": metadata["status"],
-                  "tag": metadata["tag"],
-                  "platform": platform,
-                  "asset": asset,
-                  "runner": runner,
-                  "triplet": triplet,
-                  "family": family,
-                  "cmake_arch": cmake_arch
-              })
-          expected = set(targets)
-          if {item["platform"] for item in include} != expected:
-              raise SystemExit("The current release must define all seven supported platform assets")
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as stream:
-              stream.write("version=" + version + "\n")
-              stream.write("matrix=" + json.dumps({"include": include}, separators=(",", ":")) + "\n")
+          for version in sorted(selected):
+              metadata = versions[version]
+              if set(metadata["assets"]) != set(targets):
+                  raise SystemExit(f"Version {version} must declare all seven platform assets")
+              for platform, asset in sorted(metadata["assets"].items()):
+                  runner, triplet, family, cmake_arch = targets[platform]
+                  include.append({
+                      "version": version,
+                      "source": metadata["path"],
+                      "status": metadata["status"],
+                      "tag": metadata["tag"],
+                      "platform": platform,
+                      "asset": asset,
+                      "runner": runner,
+                      "triplet": triplet,
+                      "family": family,
+                      "cmake_arch": cmake_arch
+                  })
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write("matrix=" + json.dumps({"include": include}, separators=(",", ":")) + "\n")
+              output.write("versions=" + json.dumps(sorted(selected), separators=(",", ":")) + "\n")
+              output.write("has_versions=" + ("true" if selected else "false") + "\n")
           PY
 
   build:
     name: Build ${{ matrix.version }} / ${{ matrix.platform }}
     needs: prepare
+    if: needs.prepare.outputs.has_versions == 'true'
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Set up Android SDK
         if: matrix.family == 'android'
@@ -102,7 +152,7 @@ jobs:
           sdkmanager --sdk_root="$ANDROID_HOME" --install "ndk;27.2.12479018"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
 
-      - name: Install vcpkg and native dependencies
+      - name: Install Unix dependencies
         if: matrix.family == 'linux' || matrix.family == 'unix'
         shell: bash
         env:
@@ -115,7 +165,7 @@ jobs:
           "$VCPKG_ROOT/vcpkg" install "curl[ssl]:$TRIPLET" "zlib:$TRIPLET"
           echo "VCPKG_ROOT=$VCPKG_ROOT" >> "$GITHUB_ENV"
 
-      - name: Install vcpkg and Android dependencies
+      - name: Install Android dependencies
         if: matrix.family == 'android'
         shell: bash
         env:
@@ -130,7 +180,7 @@ jobs:
           echo "ANDROID_NDK_HOME=$ANDROID_NDK_HOME" >> "$GITHUB_ENV"
           echo "VCPKG_ROOT=$VCPKG_ROOT" >> "$GITHUB_ENV"
 
-      - name: Install vcpkg and Windows dependencies
+      - name: Install Windows dependencies
         if: matrix.family == 'windows'
         shell: pwsh
         env:
@@ -165,7 +215,7 @@ jobs:
           test -n "$compiler_metadata"
           grep -Fq "set(CMAKE_CXX_COMPILER \"$NDK_BIN/clang++\")" "$compiler_metadata"
           grep -Fq 'set(CMAKE_CXX_COMPILER_ID "Clang")' "$compiler_metadata"
-          target="$($NDK_BIN/clang++ --target=aarch64-linux-android24 -dumpmachine)"
+          target="$("$NDK_BIN/clang++" --target=aarch64-linux-android24 -dumpmachine)"
           case "$target" in
             aarch64*-linux-android*) ;;
             *) printf '%s\n' "Unexpected Android compiler target: $target"; exit 1 ;;
@@ -239,7 +289,7 @@ jobs:
           test -s "dist/${{ matrix.asset }}"
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: astra-${{ matrix.version }}-${{ matrix.platform }}
           path: dist/${{ matrix.asset }}
@@ -247,28 +297,33 @@ jobs:
           retention-days: 2
 
   publish:
-    name: Publish current version release
+    name: Replace Astra ${{ matrix.version }} release
     needs:
       - prepare
       - build
+    if: needs.prepare.outputs.has_versions == 'true'
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ${{ fromJson(needs.prepare.outputs.versions) }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
 
-      - name: Download current version builds
-        uses: actions/download-artifact@v4
+      - name: Download version builds
+        uses: actions/download-artifact@v8.0.2
         with:
-          pattern: astra-${{ needs.prepare.outputs.version }}-*
+          pattern: astra-${{ matrix.version }}-*
           path: artifacts
           merge-multiple: false
 
       - name: Assemble release assets and checksums
         shell: bash
         env:
-          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+          RELEASE_VERSION: ${{ matrix.version }}
         run: |
           set -euo pipefail
           python3 - <<'PY'
@@ -297,6 +352,50 @@ jobs:
           (destination / "SHA256SUMS.txt").write_text("\n".join(checksums) + "\n", encoding="utf-8")
           PY
 
+      - name: Replace existing release and tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_VERSION: ${{ matrix.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="$(python3 -c 'import json,os; print(json.load(open("pack.json"))["versions"][os.environ["RELEASE_VERSION"]]["tag"])')"
+          if gh release view "$TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
+            gh release delete "$TAG" --repo "$GH_REPO" --cleanup-tag --yes
+          elif git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            git push origin ":refs/tags/$TAG"
+          fi
+
+      - name: Publish rebuilt release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          COMMIT_SHA: ${{ github.sha }}
+          RELEASE_VERSION: ${{ matrix.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="$(python3 -c 'import json,os; print(json.load(open("pack.json"))["versions"][os.environ["RELEASE_VERSION"]]["tag"])')"
+          STATUS="$(python3 -c 'import json,os; print(json.load(open("pack.json"))["versions"][os.environ["RELEASE_VERSION"]]["status"])')"
+          TITLE="Astra $RELEASE_VERSION"
+          if [ "$STATUS" = "preview" ]; then
+            gh release create "$TAG" "release/$RELEASE_VERSION"/* --repo "$GH_REPO" --target "$COMMIT_SHA" --title "$TITLE" --generate-notes --prerelease
+          else
+            gh release create "$TAG" "release/$RELEASE_VERSION"/* --repo "$GH_REPO" --target "$COMMIT_SHA" --title "$TITLE" --generate-notes
+          fi
+
+  notify:
+    name: Record commit issue
+    needs: prepare
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+
       - name: Create commit issue
         env:
           GH_TOKEN: ${{ github.token }}
@@ -311,7 +410,7 @@ jobs:
           COMMIT_URL="https://github.com/$GH_REPO/commit/$COMMIT_SHA"
           EXISTING="$(gh issue list --repo "$GH_REPO" --state all --limit 200 --json number,body --jq "first(.[] | select(.body != null) | select(.body | contains(\"<!-- astra-commit:$COMMIT_SHA -->\")) | .number) // empty")"
           if [ -z "$EXISTING" ]; then
-            cat > issue.md <<EOF
+            cat > issue.md <<EOF2
           <!-- astra-commit:$COMMIT_SHA -->
 
           ## Astra commit detected
@@ -327,43 +426,6 @@ jobs:
           \`\`\`text
           $COMMIT_MESSAGE
           \`\`\`
-
-          This issue was automatically generated by Astra GitHub Actions.
-          EOF
+          EOF2
             gh issue create --repo "$GH_REPO" --title "[Astra Commit] $SHORT_SHA" --body-file issue.md
-          fi
-
-      - name: Publish current version release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          COMMIT_SHA: ${{ github.sha }}
-          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          TAG="$(python3 -c 'import json,os; print(json.load(open("pack.json"))["versions"][os.environ["RELEASE_VERSION"]]["tag"])')"
-          STATUS="$(python3 -c 'import json,os; print(json.load(open("pack.json"))["versions"][os.environ["RELEASE_VERSION"]]["status"])')"
-          SOURCE="$(python3 -c 'import json,os; print(json.load(open("pack.json"))["versions"][os.environ["RELEASE_VERSION"]]["path"])')"
-          TITLE="Astra $RELEASE_VERSION"
-          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
-            if [ "$STATUS" = "preview" ]; then
-              git tag -f "$TAG" "$COMMIT_SHA"
-              git push origin "refs/tags/$TAG" --force
-            else
-              if ! git diff --quiet "$TAG" "$COMMIT_SHA" -- "$SOURCE"; then
-                printf '%s\n' "The stable source changed without a version bump. Update pack.json new version and tag before publishing."
-                exit 1
-              fi
-            fi
-          fi
-          RELEASE_ID="$(gh release view "$TAG" --repo "$GH_REPO" --json databaseId --jq .databaseId 2>/dev/null || true)"
-          if [ -z "$RELEASE_ID" ]; then
-            if [ "$STATUS" = "preview" ]; then
-              gh release create "$TAG" release/"$RELEASE_VERSION"/* --repo "$GH_REPO" --target "$COMMIT_SHA" --title "$TITLE" --generate-notes --prerelease
-            else
-              gh release create "$TAG" release/"$RELEASE_VERSION"/* --repo "$GH_REPO" --target "$COMMIT_SHA" --title "$TITLE" --generate-notes
-            fi
-          else
-            gh release upload "$TAG" release/"$RELEASE_VERSION"/* --repo "$GH_REPO" --clobber
           fi

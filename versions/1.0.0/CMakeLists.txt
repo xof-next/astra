@@ -4,7 +4,6 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Required native backends for HTTP/TLS and compression standard modules.
 find_package(PkgConfig QUIET)
 if(PkgConfig_FOUND)
   pkg_check_modules(CURL_PC QUIET IMPORTED_TARGET libcurl)

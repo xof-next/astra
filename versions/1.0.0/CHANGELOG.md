@@ -4,6 +4,8 @@
 
 - Introduced root-repository `pack.json` version registry with `new: 1.0.0`.
 - Added version-specific runtime storage and `astra install [version]`, `astra versions`, and `astra use`.
+- Added the Android ARM64 asset entry to the version registry and Termux-aware global-install test coverage.
+- Updated the build script to honor `ASTRA_BUILD_JOBS` and run its tests with a bounded job count.
 - Kept prior networking, multi-route HTTP server, standard library, and CLI improvements in the 1.0.0 source release.
 
 ### Included runtime changes

@@ -116,7 +116,7 @@ Value invokeHandler(const Value& handler, const Args& args) {
 void sendResponse(AstraSocket socket, const ResponseState& state, bool headOnly) {
     std::ostringstream out;
     out << "HTTP/1.1 " << state.status << ' ' << reasonPhrase(state.status) << "\r\n";
-    out << "Server: Astra\r\n"; // Reserved: application code cannot disable or override this header.
+    out << "Server: Astra\r\n"; 
     bool hasType = false;
     for (const auto& h : state.headers) {
         if (lower(h.first) == "server" || lower(h.first) == "content-length" || lower(h.first) == "connection") continue;
@@ -281,7 +281,7 @@ Value createServerApp() {
     app->fields["routeCount"] = native([state](const Args& a){if(!a.empty())throw std::runtime_error("routeCount expects no arguments");return Value(static_cast<int64_t>(state->routes.size()));});
     return Value(app);
 }
-} // namespace
+} 
 
 Value createServerBuiltin(const std::string& name) {
     if(name=="std:server.create") return native([](const Args& a){if(a.size()>1)throw std::runtime_error("server.create accepts at most one options object");return createServerApp();});
@@ -294,4 +294,4 @@ Value createServerModule(const std::string& name) {
     return Value(out);
 }
 
-} // namespace astra
+} 

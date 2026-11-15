@@ -33,9 +33,9 @@ struct Function {
     std::vector<Token> body;
     std::shared_ptr<struct Environment> closure;
     std::function<Value(const std::vector<Value>&)> invoke;
-    // `sync fn` explicitly opts into Astra's await-capable execution context.
-    // The current preview evaluates native operations synchronously; await is
-    // therefore an identity operation until an asynchronous backend is added.
+    
+    
+    
     bool sync = false;
 };
 struct Environment : std::enable_shared_from_this<Environment> {

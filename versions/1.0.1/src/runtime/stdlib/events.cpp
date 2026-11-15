@@ -50,13 +50,13 @@ void invokeListener(const Value& callback, const Args& args) {
     }
     throw std::runtime_error("events.on expects a function callback");
 }
-} // namespace
+} 
 
 Value createAdvancedModule(const std::string& moduleName) {
     if (moduleName == "std:server") return createServerModule(moduleName);
     if (moduleName == "std:dns" || moduleName == "std:tcp") return createNetworkModule(moduleName);
     if (moduleName != "std:events") return undefinedValue();
-    // Standard modules are process singletons: multiple imports share one event bus.
+    
     static std::shared_ptr<EventState> sharedState = std::make_shared<EventState>();
     auto state = sharedState;
     auto out = makeObject();
@@ -157,4 +157,4 @@ Value createAdvancedModule(const std::string& moduleName) {
     return Value(out);
 }
 
-} // namespace astra
+} 

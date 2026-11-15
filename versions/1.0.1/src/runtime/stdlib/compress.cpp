@@ -70,4 +70,4 @@ Value createCompressionBuiltin(const std::string& name) {
     if (name == "std:compress.crc32") return native([](const Args& a){need(a,1,"compress.crc32");const auto s=stringArg(a,0,"compress.crc32");uLong crc=crc32(0L,Z_NULL,0);crc=crc32(crc,reinterpret_cast<const Bytef*>(s.data()),static_cast<uInt>(s.size()));return Value(static_cast<int64_t>(crc));});
     return undefinedValue();
 }
-} // namespace astra
+} 

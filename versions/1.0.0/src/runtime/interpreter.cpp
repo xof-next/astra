@@ -21,7 +21,7 @@ std::shared_ptr<Environment> makeChildEnvironment(const std::shared_ptr<Environm
     auto child = std::make_shared<Environment>();
     child->parent = parent;
     if (parent) parent->children.emplace_back(child);
-    // Keep every scope alive until the execution-wide cycle cleanup runs.
+    
     if (activeEnvironmentRegistry) activeEnvironmentRegistry->push_back(child);
     return child;
 }
@@ -40,9 +40,9 @@ void clearEnvironmentTree(const std::vector<std::shared_ptr<Environment>>& roots
     std::unordered_set<const Object*> visitedObjects;
     std::unordered_set<const Function*> visitedFunctions;
 
-    // Walk the full runtime object graph before clearing it. Environments keep
-    // child scopes weakly, while closures, arrays and objects may form strong
-    // reference cycles that ordinary shared_ptr destruction cannot collect.
+    
+    
+    
     while (!pendingEnvironments.empty() || !pendingValues.empty()) {
         while (!pendingEnvironments.empty()) {
             auto current = std::move(pendingEnvironments.back());
@@ -77,7 +77,7 @@ void clearEnvironmentTree(const std::vector<std::shared_ptr<Environment>>& roots
         }
     }
 
-    // Break collection and closure cycles before releasing environment roots.
+    
     for (auto& array : arrays) array->items.clear();
     for (auto& object : objects) {
         object->fields.clear();
@@ -212,7 +212,7 @@ class Parser {
     Value parseArrowFunction(bool rustClosure=false) {
         Token where=peek(); std::vector<std::string> params;
         if (rustClosure) {
-            if (match("||")) { /* zero-argument Rust-style closure */ }
+            if (match("||")) {                                        }
             else { expect("|"); if(!at("|")){ do { Token p=take(); if(p.kind!=TokenKind::Identifier) throw RuntimeFailure("Expected closure parameter",p,"E5002"); params.push_back(p.text); } while(match(",")&&!at("|")); } expect("|"); }
         } else if (match("(")) {
             if(!at(")")){ do { Token p=take(); if(p.kind!=TokenKind::Identifier) throw RuntimeFailure("Expected arrow parameter",p,"E5002"); params.push_back(p.text); } while(match(",")&&!at(")")); }
@@ -226,8 +226,8 @@ class Parser {
     Value primary(){
         if (match("await")) {
             if (!allowAwait_) fail("E8002", "`await` is only allowed inside a `sync fn` function");
-            // Native I/O currently returns completed values. This keeps await
-            // syntax explicit without pretending the preview has async tasks.
+            
+            
             return primary();
         }
         if (at("async") && (peek(1).text=="(" || (peek(1).kind==TokenKind::Identifier && peek(2).text=="=>")))
@@ -315,18 +315,18 @@ public:
 };
 std::shared_ptr<Object> callableObject(NativeFunction f){auto o=std::make_shared<Object>();o->fields["__call"]=Value(std::move(f));return o;}
 std::shared_ptr<Environment> createGlobalEnvironment(){auto e=std::make_shared<Environment>();auto add=[&](const std::string&n){Value v=createGlobal(n,{});if(!std::holds_alternative<Undefined>(v.data))e->define(n,v,true);};for(auto n:{"console","print","Number","String","str","int","float","bool","bigint","BigInt","type","len","range","input","isUndefined","assert","Error","Array","Object"})add(n);
- // Number is both callable and a namespace of constants.
+ 
  auto numberObj=std::get<std::shared_ptr<Object>>(e->get("Number").data);numberObj->fields["__call"]=NativeFunction([](const std::vector<Value>&a){if(a.empty())throw std::runtime_error("Number expects a value");std::string s=valueToString(a[0]);try{size_t n=0;double d=std::stod(s,&n);if(n!=s.size())throw std::runtime_error("Invalid Number input");const long double wide=static_cast<long double>(d);const long double minimum=static_cast<long double>(INT64_MIN);const long double maximumExclusive=-minimum;if(std::isfinite(d)&&std::floor(d)==d&&wide>=minimum&&wide<maximumExclusive)return Value(static_cast<int64_t>(d));return Value(d);}catch(const std::exception&e){throw std::runtime_error(std::string("Cannot convert to Number: ")+e.what());}});e->values["Number"]=Value(numberObj);
- // print is callable and supports print.json(value).
+ 
  auto printObj=callableObject(std::get<NativeFunction>(createGlobal("print",{}).data));printObj->fields["json"]=NativeFunction([](const std::vector<Value>&a){if(a.empty())throw std::runtime_error("print.json expects a value");std::cout<<valueToJson(a[0],true)<<'\n';return Value(Null{});});e->values["print"]=Value(printObj);
- // Core standard namespaces are available globally, but live in a parent scope.
- // A project may shadow any of them with fn/let/const without mutating the builtin.
+ 
+ 
  for (const auto& name : {"launch","server","dns","tcp","events","json","math","crypto","fs","path","tls"}) {
      e->define(name,createBuiltinModule(std::string("std:")+name,{}),true);
  }
  return e;}
 }
-bool runFile(const std::string&path,const RunOptions&opts){std::ifstream f(path);if(!f){report({"E9001","Cannot open source file",path,"",1,1});return false;}std::ostringstream ss;ss<<f.rdbuf();std::string src=ss.str();std::vector<std::string>lines;std::istringstream ls(src);std::string line;while(std::getline(ls,line))lines.push_back(line);Lexer lx(src);auto tokens=lx.scan();if(!lx.errors().empty()){for(const auto&e:lx.errors())std::cerr<<"error[E1002]: "<<e<<'\n';return false;}auto globals=createGlobalEnvironment();EnvironmentCleanup cleanup{globals};auto env=makeChildEnvironment(globals);try{Parser p(tokens,env,path,lines);p.executeAll();Value main=env->get("main");if(!std::holds_alternative<Undefined>(main.data)){if(auto fn=std::get_if<std::shared_ptr<Function>>(&main.data)){if(!(*fn)->parameters.empty()){std::cerr<<"error[E5001]: main() must not require arguments\n";return false;}}// main is invoked in its captured project environment.
+bool runFile(const std::string&path,const RunOptions&opts){std::ifstream f(path);if(!f){report({"E9001","Cannot open source file",path,"",1,1});return false;}std::ostringstream ss;ss<<f.rdbuf();std::string src=ss.str();std::vector<std::string>lines;std::istringstream ls(src);std::string line;while(std::getline(ls,line))lines.push_back(line);Lexer lx(src);auto tokens=lx.scan();if(!lx.errors().empty()){for(const auto&e:lx.errors())std::cerr<<"error[E1002]: "<<e<<'\n';return false;}auto globals=createGlobalEnvironment();EnvironmentCleanup cleanup{globals};auto env=makeChildEnvironment(globals);try{Parser p(tokens,env,path,lines);p.executeAll();Value main=env->get("main");if(!std::holds_alternative<Undefined>(main.data)){if(auto fn=std::get_if<std::shared_ptr<Function>>(&main.data)){if(!(*fn)->parameters.empty()){std::cerr<<"error[E5001]: main() must not require arguments\n";return false;}}
             auto fn=std::get<std::shared_ptr<Function>>(main.data);auto local=makeChildEnvironment(fn->closure);try{Parser body(fn->body,local,path,lines,fn->sync);body.executeAll();}catch(const ReturnSignal&){} }
         if(opts.verbose) std::cout<<"Astra: execution completed\n";
         return true;

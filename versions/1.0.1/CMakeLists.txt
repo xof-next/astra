@@ -98,6 +98,8 @@ set_tests_properties(run_project_manifest PROPERTIES WORKING_DIRECTORY ${CMAKE_C
 
 find_package(Python3 COMPONENTS Interpreter QUIET)
 if(Python3_Interpreter_FOUND)
+  add_test(NAME repl_interactive COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/run_repl_test.py $<TARGET_FILE:astra>)
+  add_test(NAME cli_project_scripts_and_aliases COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/run_cli_test.py $<TARGET_FILE:astra>)
   add_test(NAME local_pack_manifest_cli
     COMMAND ${Python3_EXECUTABLE}
       ${CMAKE_CURRENT_SOURCE_DIR}/tests/run_pack_versions_test.py

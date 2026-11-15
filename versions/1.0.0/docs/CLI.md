@@ -113,7 +113,7 @@ Expected asset names in the initial `1.0.0` manifest entry:
 | Windows x86-64 | `astra-windows-x86_64.exe` |
 | Windows ARM64 | `astra-windows-aarch64.exe` |
 
-A source push alone does not publish executable release assets. The first bootstrap is therefore built from source; `astra install` and `astra update` become available after the matching GitHub Release and its verified platform assets have been published. The checksum verifies artifact integrity against the release metadata; it is not an independent publisher-signature system.
+The release workflow builds every platform asset declared for a version when files under that version directory change. It publishes a replacement GitHub Release only after all platform builds succeed. A first installation still requires a published release for the selected version and platform. The checksum verifies artifact integrity against release metadata; it is not an independent publisher-signature system.
 ## Runtime layout
 
 The CLI executable contains the interpreter and registered built-in modules. Individual projects need `.astra` source files and optionally `Astra.toml`; they do not need a C++ compiler, CMake, `include/`, `src/`, `stdlib/`, or copied runtime modules. This preview does not install external package dependencies.

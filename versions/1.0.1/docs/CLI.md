@@ -3,122 +3,136 @@
 ## Commands
 
 ```sh
-astra                         # project.entry from Astra.toml, otherwise main.astra
-astra <name>                  # task alias, then <name>.astra, then exact file
-astra <file.astra>            # run that source file
-astra run [name|file]         # run source; extension is optional
-astra check <file>            # lexical and selected static checks
-astra modules                 # list built-in module exports
-astra config check            # validate astra.conf or confirm defaults
-astra version
-astra --version
-astra init                    # global install when run in Astra source checkout
-astra init --project [dir]    # create a project in current/target directory
-astra install [version]
-astra update
-astra versions
-astra use <version>
+astra                         Start the interactive REPL
+astra run                     Run the project entry from Astra.toml
+astra run dev                 Run a named project script
+astra run main.astra          Run a source file
+astra file main.astra         Run a source file explicitly
+astra main.astra              Run a source file directly
+astra check main.astra        Check a source file without executing it
+astra modules                 List built-in standard modules
+astra config check            Validate astra.conf
+astra init                    Install a local build or create a project
+astra init --project [dir]    Create a project in the current/target directory
+astra install [version]       Install a version from pack.json
+astra i [version]             Alias for install
+astra update                  Install and activate the newest version
+astra u                       Alias for update
+astra versions                List available and installed versions
+astra v                       Alias for versions
+astra use <version>           Activate an installed version
+astra run                     Run a project or file
+astra r [script|file]         Alias for run
+astra c <file>                Alias for check
 ```
+
+## Interactive REPL
+
+Running `astra` without arguments always opens the interactive REPL. It does not execute a project entry automatically.
+
+```text
+Welcome to Astra v1.0.1.
+Type ".help" for more information.
+
+> let name = "Astra";
+> name
+Astra
+> 2 + 3
+5
+> .exit
+```
+
+The REPL keeps variables and function declarations available between inputs. Incomplete blocks can continue on subsequent lines with the `...` prompt.
+
+| REPL command | Purpose |
+|---|---|
+| `.help` | Show REPL commands |
+| `.version` | Show the runtime version |
+| `.clear` | Clear the terminal display |
+| `.exit` | Leave the REPL |
 
 ## First-time global installation
 
-Clone the source repository and build the selected version once:
+Build the selected version from its source directory, then install that executable globally:
 
 ```sh
 git clone https://github.com/xof-next/astra.git
 cd astra/versions/1.0.1
-./scripts/build.sh
+ASTRA_BUILD_JOBS=1 bash scripts/build.sh
 ./build/astra init
 ```
 
-When `astra init` runs with no arguments from the Astra source root (detected by `CMakeLists.txt`, `src/cli/main.cpp`, and `stdlib/modules.toml`), it copies the currently running executable into the user's global executable directory. It does not copy source files into application projects.
+Global executable locations:
 
 - Linux/macOS: `~/.local/bin/astra`
 - Android/Termux: `$PREFIX/bin/astra` when `PREFIX` is available
 - Windows: `%LOCALAPPDATA%\Programs\Astra\bin\astra.exe`
 
-On Linux/macOS the installer prints a `PATH` line when `~/.local/bin` is not present in the current `PATH`. On Windows it prints the directory to add to the current user's `PATH`; open a new terminal after changing it. Run `astra --version` from another directory to verify.
+On Linux/macOS, the installer prints a `PATH` line when `~/.local/bin` is not present in the current `PATH`. On Windows it prints the directory to add to the current user's `PATH`. Run `astra --version` from another directory to verify.
 
-The local installer stages the copy before activation, applies executable permissions on POSIX, refuses to replace a symbolic link or non-regular target, and does not run a shell command. `astra init --project` explicitly bypasses source-checkout detection and creates an application project instead.
+`astra init --project` creates an application project instead of installing the executable.
 
-## Project tasks and file shorthand
+## Project scripts and file execution
 
-A project may declare task aliases in the `[devDependencies]` section of `Astra.toml`:
+Project commands are declared in the `[scripts]` section of `Astra.toml`. Package dependencies remain separate in `[dependencies]` and `[devDependencies]`.
 
 ```toml
 [project]
 name = "my-project"
 version = "1.0.0"
-entry = "main.astra"
+entry = "src/main.astra"
+
+[dependencies]
 
 [devDependencies]
-test = "astra lib/test.astra"
+
+[scripts]
+dev = "src/dev.astra"
+test = "tests/main.astra"
 ```
 
-Then:
+Run the project entry and scripts:
 
 ```sh
-astra          # runs main.astra
-astra test     # runs lib/test.astra through the declared task
-astra test.astra
-astra run test # resolves test.astra
-astra run lib/test
+astra run
+astra run dev
+astra run test
 ```
 
-Task aliases take priority over files with the same name. If no task matches, Astra resolves the exact supplied path, then adds `.astra` when the name has no extension. Task values are deliberately restricted to `astra <file>` or `astra run <file>`; the CLI does not execute manifest task values through a shell, so commands such as `rm`, pipes, redirects, or chained shell expressions are rejected. This is a small task runner, not an external package manager.
-
-`astra config check` validates the optional runtime configuration in the current working directory. Set `ASTRA_CONFIG` to select another path. A missing file is valid and leaves built-in defaults active. This command is available in 1.0.1; the 1.0.0 CLI has no runtime-configuration command.
-
-`astra init --project` creates:
-
-```text
-my-project/
-├── Astra.toml
-├── astra.conf
-├── main.astra
-├── test.astra
-└── lib/
-    └── test.astra
-```
-
-## Manifest-based version manager
-
-The repository-root `pack.json` is the version registry. Its `new` field identifies the default version, while each key under `versions` records the release status, Git tag, immutable source path, and platform binary asset names.
+Run a file directly:
 
 ```sh
-astra versions              # read versions from pack.json
-astra install               # install pack.json -> new
-astra install 1.0.0         # install this exact release
-astra use 1.0.0             # activate an already-installed version
-astra update                # install and activate pack.json -> new
+astra file src/main.astra
+astra src/main.astra
+astra run src/main.astra
 ```
 
-The updater reads:
+A script value must resolve to an Astra source file. The CLI does not execute arbitrary shell commands from `Astra.toml`.
 
-`https://raw.githubusercontent.com/xof-next/astra/main/pack.json`
+`astra init --project` creates `Astra.toml`, `astra.conf`, `main.astra`, `test.astra`, and `lib/test.astra`.
 
-It then requests the matching GitHub Release tag (for example `v1.0.0`). Each selected version must have the platform asset named in its manifest entry. The updater verifies the SHA-256 digest from GitHub Release metadata, or from a `SHA256SUMS.txt` asset, before preserving the binary.
+## Version manager
 
-Installed binaries are kept independently:
+The repository-root `pack.json` is the version registry. Its `new` field identifies the default version, while each entry under `versions` records status, release tag, source path, and native asset names.
 
-- Linux/macOS: `~/.astra/versions/<version>/astra`
+```sh
+astra versions
+astra install
+astra install 1.0.0
+astra i 1.0.1
+astra use 1.0.0
+astra update
+```
+
+`astra install` installs the version listed in `pack.json` → `new` when it is not already installed. If it is already installed, it activates that stored version. `astra update` downloads and verifies the newest release even when that version is already installed, then activates it. `astra use` activates an already-installed version, including an older version, without deleting the other versions.
+
+The updater retrieves the selected GitHub Release, checks the platform asset and validates its SHA-256 digest before storing it. The active executable is replaced only after the downloaded version has passed validation.
+
+Installed version files are stored independently:
+
+- Linux/macOS/Android: `~/.astra/versions/<version>/astra`
 - Windows: `%LOCALAPPDATA%\Astra\versions\<version>\astra.exe`
 
-The active command remains at the global CLI path. `astra use` stages and atomically replaces that active executable from the selected installed version. Other version directories are retained.
+## Release workflow
 
-Expected asset names in the prebuilt release manifest:
-
-| Platform | Asset |
-|---|---|
-| Linux x86-64 | `astra-linux-x86_64` |
-| Linux ARM64 | `astra-linux-aarch64` |
-| macOS Intel | `astra-macos-x86_64` |
-| macOS Apple Silicon | `astra-macos-aarch64` |
-| Windows x86-64 | `astra-windows-x86_64.exe` |
-| Windows ARM64 | `astra-windows-aarch64.exe` |
-| Android ARM64 / Termux | `astra-android-aarch64` |
-
-The repository keeps every version source directory in Git. The workflow builds only the version selected by `pack.json` → `new` and publishes all of that version’s platform assets plus `SHA256SUMS.txt`. Historical source directories and releases remain available without rebuilding or retagging them. The first bootstrap is still built from source; `astra install` and `astra update` become available after the release workflow succeeds. The checksum verifies artifact integrity against the release metadata; it is not an independent publisher-signature system.
-## Runtime layout
-
-The CLI executable contains the interpreter and registered built-in modules. Individual projects need `.astra` source files and optionally `Astra.toml`; they do not need a C++ compiler, CMake, `include/`, `src/`, `stdlib/`, or copied runtime modules. This preview does not install external package dependencies.
+When a commit changes one or more `versions/<version>/` directories on `main`, the release workflow builds every platform asset declared for each changed version. After all builds succeed, it replaces that version's GitHub Release and tag with assets generated from the commit. The previous release remains available if the build matrix fails before publication.

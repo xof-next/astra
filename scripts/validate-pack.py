@@ -49,8 +49,7 @@ def main() -> int:
         expected_platforms = {
             "linux-x86_64", "linux-aarch64", "macos-x86_64", "macos-aarch64", "windows-x86_64", "windows-aarch64"
         }
-        if version == latest:
-            expected_platforms.add("android-aarch64")
+        expected_platforms.add("android-aarch64")
         if not isinstance(assets, dict) or set(assets) != expected_platforms or any(
             not isinstance(asset, str) or not asset or "/" in asset or "\\" in asset for asset in assets.values()
         ):
