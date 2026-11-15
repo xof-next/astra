@@ -20,7 +20,7 @@ fn extract({ payload: { value }, options: { enabled } }) {
     return 0;
 }
 
-async fn loadValue() {
+fn loadValue() {
     return 42;
 }
 

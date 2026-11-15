@@ -70,7 +70,7 @@ void predeclareModuleExports(const std::vector<Token>& tokens,const std::shared_
         size_t j=i;
         bool isPublic=false;
         if(tokens[j].text=="pub") { isPublic=true; ++j; }
-        if(j<tokens.size()&&(tokens[j].text=="async"||tokens[j].text=="sync")) ++j;
+        if(j<tokens.size()&&tokens[j].text=="sync") ++j;
         if(j<tokens.size()&&(tokens[j].text=="fn"||tokens[j].text=="function")&&j+1<tokens.size()&&tokens[j+1].kind==TokenKind::Identifier) {
             if(isPublic) add(tokens[j+1].text,tokens[j+1].text,tokens[i]);
             i=skipFunctionDeclaration(tokens,j+2);
@@ -309,8 +309,8 @@ class Parser {
         body.push_back({TokenKind::End,"",peek().line,peek().column});
         return body;
     }
-    Value makeArrowFunction(const std::vector<std::string>& params,std::vector<Token> body,const Token& where,bool allowAwait=false,bool asyncFunction=false) {
-        auto fn=std::make_shared<Function>(); fn->parameters=params; for (const auto& parameter : params) { ParameterPattern pattern; pattern.name=parameter; fn->parameterPatterns.push_back(pattern); } fn->body=std::move(body); fn->closure=env_; fn->asynchronous=asyncFunction; fn->allowAwait=allowAwait;
+    Value makeArrowFunction(const std::vector<std::string>& params,std::vector<Token> body,const Token& where,bool allowAwait=false) {
+        auto fn=std::make_shared<Function>(); fn->parameters=params; for (const auto& parameter : params) { ParameterPattern pattern; pattern.name=parameter; fn->parameterPatterns.push_back(pattern); } fn->body=std::move(body); fn->closure=env_; fn->allowAwait=allowAwait;
         std::weak_ptr<Function> weakFunction=fn; const std::string functionFile=file_; const auto functionLines=sourceLines_; const Token functionToken=where; auto functionLoader=loader_; auto functionModule=module_;
         fn->invoke=[weakFunction,functionFile,functionLines,functionToken,functionLoader,functionModule](const std::vector<Value>& args)->Value {
             auto live=weakFunction.lock();
@@ -323,11 +323,11 @@ class Parser {
                 catch(const ReturnSignal& r) { return r.value; }
                 return Value{};
             };
-            return live->asynchronous ? makeFuture(std::move(execute)) : execute();
+            return execute();
         };
         return Value(fn);
     }
-    Value parseArrowFunction(bool rustClosure=false,bool allowAwait=false,bool asyncFunction=false) {
+    Value parseArrowFunction(bool rustClosure=false,bool allowAwait=false) {
         Token where=peek(); std::vector<std::string> params;
         if (rustClosure) {
             if (match("||")) { }
@@ -341,24 +341,20 @@ class Parser {
         std::set<std::string> unique;
         for (const auto& parameter : params) if (!unique.insert(parameter).second) throw RuntimeFailure("Duplicate function parameter `"+parameter+"`",where,"E5002");
         std::vector<Token> body=at("{")?arrowBlockBody(where):arrowExpressionBody(where);
-        return makeArrowFunction(params,std::move(body),where,allowAwait,asyncFunction);
+        return makeArrowFunction(params,std::move(body),where,allowAwait);
     }
     Value primary(){
         if (match("await")) {
-            if (!allowAwait_) fail("E8002", "`await` is only allowed inside an `async fn` or legacy `sync fn` function");
+            if (!allowAwait_) fail("E8002", "`await` is only allowed inside a `sync fn` or `sync` arrow function");
             Token awaitToken=tokens_[pos_-1];
             try { return resolveAwait(postfix()); }
             catch (const RuntimeFailure&) { throw; }
             catch (const std::exception& e) { throw RuntimeFailure(e.what(),awaitToken,"E8003"); }
         }
-        if (match("async")) {
-            if (at("(") && parenthesizedArrowAhead()) return parseArrowFunction(false,true,true);
-            if (peek().kind==TokenKind::Identifier && peek(1).text=="=>") return parseArrowFunction(false,true,true);
-            fail("E1001","Expected an async function declaration or async arrow function");
-        }
+        if (match("async")) fail("E8001", "`async` functions and arrows are not supported; use `sync fn` when `await` is required");
         if (match("sync")) {
-            if (at("(") && parenthesizedArrowAhead()) return parseArrowFunction(false,true,false);
-            if (peek().kind==TokenKind::Identifier && peek(1).text=="=>") return parseArrowFunction(false,true,false);
+            if (at("(") && parenthesizedArrowAhead()) return parseArrowFunction(false,true);
+            if (peek().kind==TokenKind::Identifier && peek(1).text=="=>") return parseArrowFunction(false,true);
             fail("E1001","Expected a sync arrow function");
         }
         if (at("(") && parenthesizedArrowAhead()) return parseArrowFunction(false);
@@ -534,13 +530,14 @@ class Parser {
         }
         match(";");
     }
-    void publishExport(const std::string& exported,const std::string& local,const Token& where) {
+    void publishExport(const std::string& exported,const std::string& local,const Token& where,bool allowRepeated=false) {
         if(functionDepth_>0) throw RuntimeFailure("Module exports cannot be declared inside a function",where,"E3004");
         if(!module_) throw RuntimeFailure("No active module for public export",where,"E3004");
         if(!module_->environment||!module_->environment->hasBinding(local)) throw RuntimeFailure("Cannot export undeclared module binding `"+local+"`",where,"E3002");
         auto found=module_->exports->find(exported);
         if(found!=module_->exports->end()) {
-            if(found->second!=local||module_->publishedExports.count(exported)) throw RuntimeFailure("Duplicate export name `"+exported+"`",where,"E3005");
+            if(found->second!=local||(!allowRepeated&&module_->publishedExports.count(exported))) throw RuntimeFailure("Duplicate export name `"+exported+"`",where,"E3005");
+            if(module_->publishedExports.count(exported)) return;
         } else module_->exports->emplace(exported,local);
         module_->publishedExports.insert(exported);
     }
@@ -586,7 +583,7 @@ class Parser {
         if (pattern.properties.empty()) fail("E5002", "Object parameter pattern cannot be empty");
         return pattern;
     }
-    void functionStatement(bool allowAwait=false,bool asyncFunction=false,bool publicFunction=false) {
+    void functionStatement(bool allowAwait=false,bool publicFunction=false) {
         Token name=take();
         if(name.kind!=TokenKind::Identifier) throw RuntimeFailure("Expected function name",name,"E5002");
         expect("(");
@@ -616,8 +613,7 @@ class Parser {
         for(const auto& pattern:patterns) function->parameters.push_back(pattern.object?"<destructured>":pattern.name);
         function->body=body;
         function->closure=env_;
-        function->allowAwait=allowAwait||asyncFunction;
-        function->asynchronous=asyncFunction;
+        function->allowAwait=allowAwait;
         std::weak_ptr<Function> weakFunction=function;
         const std::string functionFile=file_;
         const auto functionLines=sourceLines_;
@@ -635,7 +631,7 @@ class Parser {
                 catch(const ReturnSignal&r) { return r.value; }
                 return Value{};
             };
-            return live->asynchronous?makeFuture(std::move(execute)):execute();
+            return execute();
         };
         if(!hoistedFunctions_.count(name.text)) {
             if(!env_->define(name.text,Value(function))) throw RuntimeFailure("Function `"+name.text+"` is already declared in this scope",name,"E2003");
@@ -668,11 +664,9 @@ class Parser {
             }
             size_t prefix=index;
             bool publicFunction=false;
-            bool asyncFunction=false;
             bool allowAwait=false;
             if(tokens_[prefix].text=="pub") { publicFunction=true; ++prefix; }
-            if(prefix<tokens_.size()&&(tokens_[prefix].text=="async"||tokens_[prefix].text=="sync")) {
-                asyncFunction=tokens_[prefix].text=="async";
+            if(prefix<tokens_.size()&&tokens_[prefix].text=="sync") {
                 allowAwait=true;
                 ++prefix;
             }
@@ -681,7 +675,7 @@ class Parser {
                 if(hoistedFunctions_.count(functionName)) throw RuntimeFailure("Function `"+functionName+"` is already declared in this scope",tokens_[prefix+1],"E2003");
                 const size_t saved=pos_;
                 pos_=prefix+1;
-                functionStatement(allowAwait,asyncFunction,publicFunction);
+                functionStatement(allowAwait,publicFunction);
                 hoistedFunctions_.insert(functionName);
                 index=pos_;
                 pos_=saved;
@@ -698,11 +692,10 @@ public:
         if(match(";")) return;
         if(match("import")){importStatement();return;}
         if(match("pub")){
-            bool asyncFunction=false;
             bool allowAwait=false;
-            if(match("async")){asyncFunction=true;allowAwait=true;}
-            else if(match("sync")){allowAwait=true;}
-            if(match("fn")||match("function")){functionStatement(allowAwait,asyncFunction,true);return;}
+            if(match("async")) fail("E8001", "`pub async fn` is not supported; use `pub sync fn` when `await` is required");
+            if(match("sync")){allowAwait=true;}
+            if(match("fn")||match("function")){functionStatement(allowAwait,true);return;}
             if(match("let")){variableStatement(false,true);return;}
             if(match("const")){variableStatement(true,true);return;}
             if(match("{")){
@@ -721,13 +714,13 @@ public:
             }
             Token exported=take();
             if(exported.kind!=TokenKind::Identifier) throw RuntimeFailure("Expected a function, variable, or binding after `pub`",exported,"E1001");
-            publishExport(exported.text,exported.text,exported);
+            publishExport(exported.text,exported.text,exported,true);
             match(";");
             return;
         }
-        if(match("async")){if(match("fn")||match("function")){functionStatement(true,true,false);return;}fail("E1001","Expected an async function declaration or async arrow function");}
-        if(match("sync")){if(match("fn")||match("function")){functionStatement(true,false,false);return;}fail("E1001","Expected `fn` after `sync`");}
-        if(match("fn")||match("function")){functionStatement(false,false,false);return;}
+        if(match("async")) fail("E8001", "`async` functions are not supported; use `sync fn` when `await` is required");
+        if(match("sync")){if(match("fn")||match("function")){functionStatement(true,false);return;}fail("E1001","Expected `fn` after `sync`");}
+        if(match("fn")||match("function")){functionStatement(false,false);return;}
         if(match("let")){variableStatement(false);return;}
         if(match("const")){variableStatement(true);return;}
         if(match("if")){ifStatement();return;}

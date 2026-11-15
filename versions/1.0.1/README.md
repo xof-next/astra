@@ -23,7 +23,7 @@ Version 1.0.1 includes the language/runtime corrections documented below, plus b
 ## Highlights
 
 - C++17 runtime and native `astra` CLI.
-- Lexical block scopes, closures, hoisted function declarations, object parameter destructuring, module imports and exports, `sync fn`, `async fn`, and Future-backed `await`.
+- Lexical block scopes, closures, hoisted function declarations, object parameter destructuring, module imports and exports, `sync fn` and Future-backed `await`.
 - 37 built-in standard modules and 172 registered exports, including networking, HTTP clients, HTTP server routing, DNS, TCP, TLS clients, JSON, filesystem access, cryptography, compression, text processing, and collections.
 - Version-aware CLI installation through the repository-root `pack.json` manifest.
 - HTTP server with a fixed worker pool, bounded pending queue, explicit overload responses, per-IP and total connection limits, request-rate limits, buffer limits, and an absolute request-read deadline.
@@ -144,7 +144,7 @@ Astra also supports extensionless source paths with `astra run`. Project task al
 
 Astra 1.0.1 has block-level lexical scopes, mutable `let` bindings, initialized immutable `const` bindings, hoisted function declarations, closures, exact-arity function calls, object parameter destructuring, and explicit module publication through `pub`. `null` and `undefined` are distinct values; an uninitialized `let` and a missing object property produce `undefined`. Ordinary property access on `null` or `undefined` is an error, while nested optional property access such as `user?.profile?.url` produces `undefined` when a receiver is nullish.
 
-`type(value)` reports the internal Astra type. It reports `promise` for a Future and inspects the resolved value when used as `type(await expression)` inside an allowed function. Ordinary `fn` functions cannot use `await`; `sync fn` can wait for Future results, and `async fn` / async arrows return Future values. A caller does not become asynchronous merely because it calls a function returning a Future.
+`type(value)` reports the internal Astra type. It reports `promise` for a Future and inspects the resolved value when used as `type(await expression)` inside an allowed function. Ordinary `fn` functions cannot use `await`; only `sync fn` and `sync` arrows can. Language-level `async fn` and async arrows are rejected with `E8001`. Native asynchronous operations such as HTTP, DNS, TLS, and TCP return Future values, which a `sync` function can resolve with `await`.
 
 Local modules are resolved relative to the importing file. The runtime supports named, namespace, import-all and default imports, plus live exported bindings and circular module loading. `pub` exposes only explicitly published bindings. See the complete [Astra 1.0.1 language and runtime reference](docs/LANGUAGE.md) for syntax, operators, parameter patterns, path rules, module state, comments, and diagnostic codes. The reference links to examples that are executed by CTest.
 
@@ -168,7 +168,10 @@ Run the language example and module example from this source directory:
 ```sh
 ./build/astra run examples/language_runtime.astra
 ./build/astra run examples/module_runtime/main.astra
+./build/astra run examples/module_sync_await/main.astra
 ```
+
+The `module_sync_await` example demonstrates a module exporting `pub sync fn`, using `await` on a native HTTP Future, importing a validator from another relative module, and returning parsed JSON. It requires internet access.
 
 ## HTTP server
 

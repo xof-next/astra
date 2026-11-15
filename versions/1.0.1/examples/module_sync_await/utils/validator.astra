@@ -1,0 +1,7 @@
+import "std:validate" as validate;
+
+pub fn isValidUser(user) {
+    return type(user) == "object"
+        && type(user.name) == "string"
+        && !validate.isEmpty(user.name);
+}

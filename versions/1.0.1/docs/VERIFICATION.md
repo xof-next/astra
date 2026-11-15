@@ -1,6 +1,6 @@
 # Astra 1.0.1 validation record
 
-Validation date: 2026-11-14
+Validation date: 2026-11-15
 
 ## Verified environment
 
@@ -17,7 +17,7 @@ Validation date: 2026-11-14
 ## Results
 
 - Clean CMake Release configuration and compile completed successfully.
-- CTest: 42 of 42 tests passed, including the existing server/network/configuration suite, runnable language and module examples, and the language/runtime regression suite for scopes, functions, destructuring, modules, live bindings, circular imports, async behavior, comments, and diagnostics.
+- CTest: 44 of 44 tests passed, including the existing server/network/configuration suite, runnable language and module examples, and the language/runtime regression suite for scopes, functions, destructuring, modules, live bindings, circular imports, sync-only `await`, rejected `async` declarations, comments, and diagnostics.
 - HTTP worker-pool stress smoke test: 1,000 requests through 64 concurrent clients completed successfully.
 - The direct stress-test process completed in approximately 1.07 seconds in this environment; this includes server startup and shutdown and must not be treated as a controlled requests-per-second benchmark.
 - The server integration suite verified route behavior, the request-read deadline, and the maximum response-body limit. Runtime configuration tests verified server rate limits and request-body limits, outbound HTTP client buffer limits, per-call overrides, and strict rejection of unknown keys.

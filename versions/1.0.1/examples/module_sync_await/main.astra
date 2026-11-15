@@ -1,0 +1,7 @@
+import { fetchUser } as "./services/user";
+
+pub sync fn main() {
+    const user = fetchUser(1);
+    console.log("Name:", user.name);
+    console.log("Email:", user.email);
+}

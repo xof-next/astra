@@ -1,0 +1,17 @@
+import "std:launch" as launch;
+import "std:json" as json;
+import { isValidUser } as "../utils/validator";
+
+pub sync fn fetchUser(id) {
+    const response = await launch.get("https://jsonplaceholder.typicode.com/users/" + id);
+    if (response.status != 200) {
+        throw "User request failed with HTTP " + response.status;
+    }
+
+    const user = json.parse(response.body);
+    if (!isValidUser(user)) {
+        throw "User response is invalid";
+    }
+
+    return user;
+}

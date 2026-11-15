@@ -8,7 +8,7 @@ Built-in modules are implemented in native C++ and imported with `std:`. The mod
 import "std:launch" as launch;
 import "std:json" as json;
 
-pub async fn main() {
+pub sync fn main() {
     let response = await launch.get("https://example.com/data");
     console.log(response.status, response.ok);
     let data = json.parse(response.body);
@@ -23,7 +23,7 @@ pub async fn main() {
 }
 ```
 
-`std:launch` exports `request`, `get`, `post`, `put`, `patch`, `del`/`delete`, `head`, and `options`. The `launch` module is also callable: `launch(url, options)` is a GET request by default. `launch.request(url, options)` also defaults to GET when `options.method` is omitted. Every HTTP operation returns a promise value and executes on the bounded runtime task executor (up to 16 concurrent tasks). Use `await` inside `async fn` or the supported legacy `sync fn` form to receive the response. HTTP status codes such as 404 are returned normally in `response.status`; transport, timeout, protocol and TLS failures reject the promise and are raised at the await point.
+`std:launch` exports `request`, `get`, `post`, `put`, `patch`, `del`/`delete`, `head`, and `options`. The `launch` module is also callable: `launch(url, options)` is a GET request by default. `launch.request(url, options)` also defaults to GET when `options.method` is omitted. Every HTTP operation returns a promise value and executes on the bounded runtime task executor (up to 16 concurrent tasks). Use `await` inside `sync fn` to receive the response. Language-level `async fn` is not part of Astra 1.0.1. HTTP status codes such as 404 are returned normally in `response.status`; transport, timeout, protocol and TLS failures reject the promise and are raised at the await point.
 
 `request(url, options)` supports `method`, `headers`, `body`, `timeoutMs`, `connectTimeoutMs`, `followRedirects`, `maxRedirects`, `maxRequestBytes`, `maxResponseBytes`, `maxHeaderBytes`, `verifyTls`, `userAgent`, and `caInfo` (a custom CA certificate bundle path). Request bodies must be strings; serialize JSON explicitly with `json.stringify()`. Defaults are supplied by the optional `[client]` section of `astra.conf` or the runtime defaults: 15-second total timeout, 5-second connect timeout, 10 MiB request and response caps, 256 KiB response-header cap, at most five redirects, TLS certificate and hostname verification enabled, and minimum TLS 1.2. Per-request options override matching configuration values. Redirects are restricted to HTTP and HTTPS. Set `verifyTls: false` only for controlled local testing; never use it for normal production traffic.
 
@@ -185,7 +185,7 @@ Register as many routes as required before `listen()`. Supported method helpers 
 import "std:dns" as dns;
 import "std:tcp" as tcp;
 
-pub async fn main() {
+pub sync fn main() {
     console.log(await dns.resolve("localhost"));
     console.log(dns.isIP("127.0.0.1"));
     const socket = await tcp.connect("127.0.0.1", 9000, { timeoutMs: 5000 });

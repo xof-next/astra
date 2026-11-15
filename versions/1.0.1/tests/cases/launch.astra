@@ -3,7 +3,7 @@ import "std:env" as env;
 import "std:testing" as testing;
 import "std:string" as text;
 
-pub async fn main() {
+pub sync fn main() {
     let base = env.get("ASTRA_HTTP_TEST_URL");
     let responsePending = launch.get(base + "/get");
     let customHeadersPending = launch.get(base + "/get", { headers: { "X-Astra-Test": "enabled" } });

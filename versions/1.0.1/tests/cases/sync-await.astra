@@ -1,12 +1,11 @@
-async fn calculateAsync(value) {
-    return value + 1;
+sync fn calculate(value) {
+    return await value + 1;
 }
-sync fn calculate() {
-    let pending = calculateAsync(41);
-    return await pending;
-}
+
 pub sync fn main() {
-    assert(calculate() == 42, "legacy sync fn must continue to await asynchronous results");
-    assert(type(calculateAsync(41)) == "promise", "async functions must return promise values");
-    console.log("sync/await compatibility passed");
+    assert(calculate(41) == 42);
+    let add = sync (value) => await value + 1;
+    assert(add(41) == 42);
+    assert(await 7 == 7);
+    console.log("sync/await execution passed");
 }

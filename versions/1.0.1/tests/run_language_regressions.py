@@ -50,17 +50,8 @@ fn earlyCall() { return later(); }
 fn later() { return 41; }
 const hoistedResult = calculate();
 fn calculate() { return 100; }
-async fn loadData() { return 42; }
-async fn nestedAsync() { return await loadData() + 1; }
-async fn nestedFuture() { return loadData(); }
-async fn deepAsync(depth) { if (depth == 0) return 0; return await deepAsync(depth - 1) + 1; }
-async fn failingFuture() { throw "future failed"; }
-sync fn resolveNested() { const result = await nestedAsync(); return result; }
-sync fn resolveNestedFuture() { return await nestedFuture(); }
-sync fn resolveDeepAsync() { return await deepAsync(32); }
-sync fn catchFutureFailure() { try { return await failingFuture(); } catch (error) { return error.message; } }
+fn loadData() { return 42; }
 sync fn resolvedType() { return type(await loadData()); }
-fn returnFuture() { return loadData(); }
 fn returnString() { return "text"; }
 fn returnNumber() { return 12; }
 fn returnBoolean() { return true; }
@@ -105,16 +96,9 @@ pub sync fn main() {
     assert(type(returnArray()) == "array");
     assert(type(returnNull()) == "null");
     assert(type(returnUndefined()) == "undefined");
-    assert(type(returnFuture()) == "promise");
-    assert(resolveNested() == 43);
-    assert(resolveNestedFuture() == 42);
-    assert(resolveDeepAsync() == 32);
-    assert(catchFutureFailure() == "future failed");
     assert(resolvedType() == "int");
     let syncArrow = sync () => { return await loadData(); };
     assert(syncArrow() == 42);
-    let asyncArrow = async () => await loadData();
-    assert(await asyncArrow() == 42);
     import "std:validate" as validate;
     assert(validate.isEmpty("") == true);
     assert(validate.isEmpty("  \t\n") == true);
@@ -133,13 +117,25 @@ pub counter;
 pub fn get() { return counter; }
 pub fn update(value) { counter = value; return counter; }
 pub fn fetch(value) { return value + 1; }
-pub async fn asyncFetch(value) { return value + 2; }
+pub sync fn syncFetch(value) { return await value + 2; }
 let mapValue = value => value * 2;
 pub mapValue;
 let pending;
 pub pending;
 pub { alias: get, default: fetch };
 ''')
+    write(root, "modules/first-data.astra", 'pub const data = "first";\n')
+    write(root, "modules/second-data.astra", 'pub const data = "second";\n')
+    write(root, "modules/reexport.astra", r'''import { data } as "./first-data";
+pub data;
+import { data } as "./second-data";
+pub data;
+''')
+    reexport_test = write(root, "modules/reexport-test.astra", r'''import { data } as "./reexport";
+pub fn main() { assert(data == "second"); }
+''')
+    run(reexport_test, True)
+
     write(root, "modules/fallback.astra", "pub fn fallback(value) { return value + 3; }\n")
     write(root, "modules/nested/index.astra", "pub const nestedValue = 7;\n")
     write(root, "modules/group/index.astra", "pub const groupValue = 13;\n")
@@ -147,7 +143,7 @@ pub { alias: get, default: fetch };
     module_test = root / "modules/module-test.astra"
     module_test.parent.mkdir(parents=True, exist_ok=True)
     module_test.write_text(r'''let counter;
-import { get, update, alias, counter, pending, asyncFetch, mapValue } as "./fetch";
+import { get, update, alias, counter, pending, syncFetch, mapValue } as "./fetch";
 import * as "./fetch";
 import nestedValue as "./nested";
 import * as "./nested";
@@ -163,7 +159,7 @@ pub sync fn main() {
     assert(nested.nestedValue == 7);
     assert(mapValue(6) == 12);
     assert(type(pending) == "undefined");
-    assert(await asyncFetch(3) == 5);
+    assert(syncFetch(3) == 5);
 }
 ''', encoding="utf-8")
     run(module_test, True)
@@ -249,6 +245,9 @@ pub fn main() {
         ("pub-in-function", "fn bad() { let value = 1; pub value; }\npub fn main() { bad(); }\n", "E3004"),
         ("pub-undeclared", "pub absent;\npub fn main() {}\n", "E3002"),
         ("pub-block-local", "{ let privateValue = 1; pub privateValue; }\npub fn main() {}\n", "E3002"),
+        ("async-function-rejected", "async fn bad() {}\npub fn main() {}\n", "E8001"),
+        ("async-pub-function-rejected", "pub async fn bad() {}\npub fn main() {}\n", "E8001"),
+        ("async-arrow-rejected", "const bad = async () => 1;\npub fn main() {}\n", "E8001"),
         ("syntax-unclosed", "pub fn main() {\n", "E1001"),
     ]
     for name, source, code in negatives:

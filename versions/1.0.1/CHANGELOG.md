@@ -34,17 +34,16 @@
 - Added `#` line comments with preserved source line and column tracking.
 - Added file module imports for named, namespace, all-export, and default forms, path resolution relative to the importing file, `std:` module imports, and read-only live import bindings.
 - Added `pub` declarations and aliases, live exports, module load states, and successful circular-import support.
-- Restricted `await` to permitted `sync` / asynchronous function contexts; nested Future values are resolved and asynchronous failures are reported at the awaiting expression.
+- Restricted `await` to `sync fn` and `sync` arrow contexts; language-level `async fn` declarations and async arrows are rejected. Native Future values are resolved by `await`, with operation failures reported at the awaiting expression.
 - Added the `std:validate.isEmpty()` whitespace-only string check without changing `type()` semantics.
 - Added a language reference, runnable examples, and an automated regression suite for the updated runtime behavior.
 
-### Asynchronous runtime
+### Native Future runtime
 
-- Added promise-backed `async fn` and asynchronous arrow functions.
 - Implemented `await` resolution for nested asynchronous values and runtime error propagation into `try`/`catch`.
 - Moved outbound HTTP, TLS verification, DNS, TCP connect, TCP read, and TCP write operations onto a bounded worker executor.
-- Preserved `sync fn` / `pub sync fn` and the existing `await` syntax for backward compatibility.
-- Added concurrency-safe environment bindings, bounded asynchronous task creation, and shutdown waiting for outstanding tasks.
+- Kept `sync fn` / `pub sync fn` as the only language-level contexts that can use `await`; language-level `async fn` and async arrows are rejected.
+- Added concurrency-safe environment bindings, bounded native task creation, and shutdown waiting for outstanding tasks.
 
 ### Build and portability
 
@@ -64,7 +63,7 @@
 ### Verification status
 
 - The Debian GNU/Linux 13 x86_64 Release build succeeds in the current validation environment.
-- All 42 CTest cases pass in the current Debian 13 x86_64 environment, including an absolute request-deadline check and an oversized-response check.
+- All 44 CTest cases pass in the current Debian 13 x86_64 environment, including the sync-only `await` and module-binding regression coverage, an absolute request-deadline check, and an oversized-response check.
 - Windows, macOS, other Linux libc variants, and Android/Termux have source-build instructions but were not executed in this validation environment.
 - The 1,000-request concurrent integration test is a functional stress smoke test, not a throughput benchmark or a million-requests-per-second certification.
 - The release workflow fixes the Android SDK package/license setup, Windows `min`/`max` macro collision, and macOS `timeval` narrowing errors identified in the previous runner logs.

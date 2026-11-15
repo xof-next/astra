@@ -7,7 +7,7 @@ fn onRequestFinished(status, elapsed) {
     console.info(`Request finished: ${status} in ${elapsed} ms`);
 }
 
-pub async fn main() {
+pub sync fn main() {
     events.on("request:finished", onRequestFinished);
 
     console.info("TLS backend:", tls.backend());

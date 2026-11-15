@@ -7,7 +7,7 @@ Implemented in this expanded preview:
 - Promise-based HTTP and TLS client requests through callable `launch(url)` (default GET) and `launch.get/post/put/patch/delete/head/options`, using libcurl on a bounded worker executor with response/time/size limits, redirect controls, and TLS certificate/hostname validation enabled by default.
 - A bounded-worker HTTP/1.x server with common route methods, path parameters, bounded header/request/response sizes, an absolute request-read deadline, overload rejection, and an enforced `Server: Astra` response header. Route callback execution remains serialized to protect shared interpreter environments.
 - Promise-based TLS verification, DNS lookup/resolve/reverse, and TCP connect/read/write operations with connect and socket timeouts, byte-string I/O, and explicit close.
-- `async fn` / `pub async fn`, asynchronous arrow functions, promise values, `await`, and backward-compatible `sync fn` / `pub sync fn` execution contexts. Ordinary functions and top-level code reject `await`.
+- Language-level `async fn` / `pub async fn` declarations and async arrows are not supported. Native asynchronous I/O returns Future values; only `sync fn` / `pub sync fn` and `sync` arrows can use `await`. Ordinary functions and top-level code reject `await`.
 - TLS backend/policy information and client certificate verification through `tls`.
 - Synchronous in-process event listeners through `events`.
 - Gzip/zlib compression and CRC-32 with bounded decompression.
@@ -20,7 +20,7 @@ Not implemented in this preview:
 
 - Native machine-code generation, bytecode, optimizer, debugger or profiler.
 - External package installation, package registry access, dependency resolution, `Astra.lock` generation, and loading `@scope/package` packages. Relative local `.astra` modules are supported.
-- A general event-loop scheduler, promise chaining methods such as `.then()` and `.catch()`, UDP sockets, WebSocket, HTTP keep-alive, chunked request decoding, HTTP/2, HTTP/3, TLS server sockets, client certificates and custom TLS callbacks. Asynchronous functions and native HTTP, DNS and TCP operations use a bounded executor with at most 16 active tasks; additional work runs inline when the limit is reached. `await` waits for the current task result and unwraps nested future results. Shared mutable arrays and objects should not be mutated concurrently across asynchronous tasks.
+- A general event-loop scheduler, promise chaining methods such as `.then()` and `.catch()`, UDP sockets, WebSocket, HTTP keep-alive, chunked request decoding, HTTP/2, HTTP/3, TLS server sockets, client certificates and custom TLS callbacks. Native HTTP, TLS, DNS and TCP operations use a bounded executor with at most 16 active tasks; additional work runs inline when the limit is reached. `await` waits for the current task result and unwraps nested future results. Shared mutable arrays and objects should not be mutated concurrently across native operations.
 - `switch`, `break`, `continue`, classes, structs, generics, typed function signatures, array parameter destructuring, default/rest parameters, and advanced closure semantics beyond lexical capture.
 - Full static type checker, complete parser diagnostics, full stack traces and source maps.
 - Method-style array calls such as `items.push(...)`, complete operator coercion, and short-circuit evaluation. Logical operators evaluate their right-hand expressions.

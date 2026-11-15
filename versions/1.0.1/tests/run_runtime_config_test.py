@@ -139,7 +139,7 @@ verify_tls = true
     port = server.server_address[1]
     source = directory / "client.astra"
     source.write_text(f'''import "std:testing" as testing;
-pub async fn main() {{
+pub sync fn main() {{
     let responseBlocked = false;
     try {{ await launch.get("http://127.0.0.1:{port}/large"); }} catch (error) {{ responseBlocked = true; }}
     testing.assert(responseBlocked);

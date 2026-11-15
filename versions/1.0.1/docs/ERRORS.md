@@ -9,8 +9,8 @@ Compiler/runtime diagnostics use stable error code families and source locations
 - `E5xxx`: functions and arguments
 - `E6xxx`: runtime operations
 - `E7xxx`: memory/resources (reserved)
-- `E8001`: reserved async declaration diagnostic
-- `E8002`: `await` used outside an allowed `sync fn` or `async fn` / arrow context
+- `E8001`: unsupported `async` function or arrow declaration; use `sync fn` / `sync` arrow
+- `E8002`: `await` used outside a `sync fn` or `sync` arrow context
 - `E8003`: awaited asynchronous operation failed
 - `E9xxx`: project/compiler/CLI
 - `Wxxxx`: warnings (reserved in this preview)

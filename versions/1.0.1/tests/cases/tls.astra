@@ -3,7 +3,7 @@ import "std:launch" as launch;
 import "std:tls" as tls;
 import "std:testing" as testing;
 
-pub async fn main() {
+pub sync fn main() {
     let url = env.get("ASTRA_TLS_TEST_URL");
     let caFile = env.get("ASTRA_TLS_TEST_CA");
     let untrustedBlocked = false;

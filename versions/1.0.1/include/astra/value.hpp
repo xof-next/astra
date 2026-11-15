@@ -53,7 +53,6 @@ struct Function {
     std::shared_ptr<struct Environment> closure;
     std::function<Value(const std::vector<Value>&)> invoke;
     bool allowAwait = false;
-    bool asynchronous = false;
 };
 struct Future {
     std::shared_future<Value> result;

@@ -224,7 +224,7 @@ Path resolution rules:
 - `./main` tries `main.astra`, then `main/index.astra`.
 - `./main.astra` selects that explicit file.
 
-A missing file fails with `E3001`. A missing named export or an import-all from a module without public exports fails with `E3002`. Import bindings cannot be reassigned. An import may replace a same-scope `let` only when that `let` is still `undefined`; it cannot replace a constant or an initialized binding.
+A missing file fails with `E3001`. A missing named export or an import-all from a module without public exports fails with `E3002`. Import bindings cannot be reassigned. An import may replace a same-scope `let` only when that `let` is still `undefined`; it cannot replace a constant or an initialized binding. A later import may reuse an existing imported local name and redirects that read-only binding to the later module; the last import wins. Repeating `pub data;` for the same local binding is idempotent, so its live export follows the latest imported source. Conflicting export aliases and duplicate names within one `pub { ... }` list still fail.
 
 ## Module exports with `pub`
 
@@ -245,11 +245,11 @@ fn process() {
 pub { data: process, process };
 ```
 
-`pub async fn` and `pub sync fn` are supported. Alias exports use `exportedName: localName`. Exported `let` values are live: an importer observes subsequent assignments to the source binding. Importer bindings remain read-only. Publishing an undeclared binding, publishing from inside a function, or declaring a conflicting export fails. Duplicate exports fail with `E3005`.
+`pub sync fn` is supported. `pub async fn` is rejected with `E8001`. Alias exports use `exportedName: localName`. Exported `let` values are live: an importer observes subsequent assignments to the source binding. Importer bindings remain read-only. Publishing an undeclared binding, publishing from inside a function, or declaring a conflicting export fails. Duplicate exports fail with `E3005`.
 
 Modules are cached with loading, loaded, and failed states. A module already in the loading state can be referenced during a circular import; imports retain references to source environments, so they observe live exported values after initialization. A module that previously failed to load cannot be reused; the loader reports `E3006` on a later attempt.
 
-## Asynchronous functions and `await`
+## `sync` functions and `await`
 
 Ordinary `fn` functions and top-level module statements cannot use `await`. `sync fn` is the synchronous execution form that is permitted to wait for asynchronous values:
 
@@ -268,7 +268,20 @@ let getData = sync () => {
 };
 ```
 
-The runtime also supports `async fn` and async arrow functions. Calling one returns a Future immediately. Ordinary functions do not become asynchronous just because they call a function that returns a Future; that Future can be returned or explicitly awaited from an allowed function. `await` on a non-Future value returns that value unchanged. Nested Future results are unwrapped up to a bounded depth of 64. Async work runs through an executor with up to 16 active worker tasks; work beyond that bound runs inline. Rejected asynchronous work is reported at the awaiting expression with `E8003`.
+Astra does not define language-level `async fn` declarations or async arrows. The `async` modifier is rejected with `E8001`; use `sync fn` or a `sync` arrow when the body must use `await`. Native asynchronous operations such as HTTP, TLS verification, DNS, and TCP I/O return Future values. A `sync` function executes on the calling thread while those native operations run through the bounded task executor. `await` on a non-Future value returns that value unchanged. Nested Future results are unwrapped up to a bounded depth of 64. Rejected native operations are reported at the awaiting expression with `E8003`.
+
+The same rule applies when the function is imported from another file. The module may own the `sync fn` that awaits the native operation; the importing module only imports and calls the exported function:
+
+```astra
+import { fetchUser } as "./services/user";
+
+pub sync fn main() {
+    const user = fetchUser(1);
+    console.log(user.name);
+}
+```
+
+The implementation example at `examples/module_sync_await/` includes the service module, a validation module, JSON parsing, and a real HTTP request. It requires an internet connection when run.
 
 ## Comments
 
@@ -298,10 +311,10 @@ Diagnostics include an error code and, where available, the source path, line, c
 | `E4001`–`E4004` | Invalid value/type operation or numeric conversion |
 | `E5001`–`E5003` | Invalid function call, parameter pattern, destructuring, or return placement |
 | `E6003` | Property access through `null` or `undefined` |
-| `E8002` / `E8003` | `await` outside an allowed function or asynchronous operation failure |
+| `E8001`–`E8003` | unsupported `async` declaration, `await` outside `sync`, or native Future failure |
 
 `astra check` is a limited static checker; it does not replace executing the program with `astra run`. Runtime behavior is the authoritative check for the interpreter features documented here.
 
 ## Verified examples
 
-The repository includes runnable examples in `examples/language_runtime.astra` and `examples/module_runtime/main.astra`. The CTest suite executes both and runs `tests/run_language_regressions.py` for additional scope, module, import, destructuring, async, comment, and diagnostic cases.
+The repository includes runnable examples in `examples/language_runtime.astra` and `examples/module_runtime/main.astra`. The CTest suite executes both and runs `tests/run_language_regressions.py` for additional scope, module, import, destructuring, sync/await, comment, and diagnostic cases.

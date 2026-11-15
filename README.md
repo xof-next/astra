@@ -47,7 +47,7 @@ astra --help
 astra init --project
 ```
 
-See the [Astra 1.0.1 README](versions/1.0.1/README.md) and the [language/runtime reference](versions/1.0.1/docs/LANGUAGE.md) for project setup, syntax, scope, functions, modules, asynchronous execution, the HTTP server API, platform instructions, and runtime limits. The [runtime configuration reference](versions/1.0.1/docs/CONFIGURATION.md) documents all `astra.conf` settings and version compatibility.
+See the [Astra 1.0.1 README](versions/1.0.1/README.md) and the [language/runtime reference](versions/1.0.1/docs/LANGUAGE.md) for project setup, syntax, scope, functions, modules, sync/await with native asynchronous I/O, the HTTP server API, platform instructions, and runtime limits. The [runtime configuration reference](versions/1.0.1/docs/CONFIGURATION.md) documents all `astra.conf` settings and version compatibility.
 
 ## Version management
 

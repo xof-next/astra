@@ -21,30 +21,32 @@ const multiply = (a, b) => {
 };
 ```
 
-## Asynchronous functions and arrow functions
+## Synchronous functions and `await`
+
+Only `sync fn` declarations and `sync` arrows may use `await`. The function itself executes on the calling thread; native asynchronous operations return Future values and run through the bounded runtime task executor.
 
 ```astra
-async fn fetchStatus(url) {
+sync fn fetchStatus(url) {
     const response = await launch.get(url);
     return response.status;
 }
 
-const fetchJson = async (url) => {
+const fetchJson = sync (url) => {
     const response = await launch.get(url);
     return json.parse(response.body);
 };
 
-pub async fn main() {
-    const first = fetchStatus("https://example.com");
-    console.log(type(first));
-    console.log(await first);
+pub sync fn main() {
+    const pending = launch.get("https://example.com");
+    console.log(type(pending));
+    console.log(await pending);
     console.log(await fetchJson("https://example.com/data"));
 }
 ```
 
-Calling an `async fn` or async arrow returns a promise value immediately. The function body runs on the bounded native task executor, which permits up to 16 active tasks at once. `await` waits for that value and unwraps nested asynchronous results. Rejected tasks raise a runtime error at the `await` expression and can be handled with `try`/`catch`. HTTP, DNS, and TCP operations also return promise values. `sync fn` and `pub sync fn` remain supported for compatibility; they execute on the calling thread, while awaited native operations still run through the worker executor. Ordinary functions and top-level statements cannot use `await`.
+A normal `fn` or ordinary arrow cannot use `await`. Calling a native asynchronous operation from a normal function is allowed when its Future is returned or passed elsewhere; resolving it requires a `sync` function or `sync` arrow. Language-level `async fn` and async arrows are rejected with `E8001`. `await` on a non-Future value returns that value unchanged. Nested Future results are unwrapped, and rejected native operations are raised at the awaiting expression so they can be handled with `try`/`catch`.
 
-Astra uses a bounded worker executor. It does not provide a general event-loop scheduler. Promise chaining methods such as `.then()` are not available. Shared mutable arrays and objects should not be mutated concurrently by separate asynchronous tasks.
+The bounded task executor allows up to 16 active native operations at once. Additional work runs inline when the limit is reached. Astra does not provide a general event-loop scheduler or promise chaining methods such as `.then()`.
 
 ## Pipe-parameter synchronous closure
 
@@ -97,4 +99,4 @@ let loadData = sync () => {
 };
 ```
 
-The normal `fn` and arrow forms cannot contain `await`. An `async fn` or async arrow returns a Future; callers may return that Future without awaiting it, or await it from an allowed `sync fn` / `async fn` context.
+The normal `fn` and arrow forms cannot contain `await`. Only `sync fn` and `sync` arrows can resolve native Future values.

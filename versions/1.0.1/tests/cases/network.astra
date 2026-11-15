@@ -1,6 +1,6 @@
 import "std:dns" as dns;
 
-pub async fn main() {
+pub sync fn main() {
     assert(dns.isIP("127.0.0.1") == 4);
     assert(dns.isIP("::1") == 6);
     assert(dns.isIP("not-an-ip") == 0);

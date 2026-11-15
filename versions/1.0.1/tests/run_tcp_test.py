@@ -29,7 +29,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
         source = pathlib.Path(temp) / "tcp.astra"
         source.write_text(
             'import "std:tcp" as tcp;\n'
-            f'pub async fn main() {{\n    let client = await tcp.connect("127.0.0.1", {port}, {{ timeoutMs: 2000 }});\n'
+            f'pub sync fn main() {{\n    let client = await tcp.connect("127.0.0.1", {port}, {{ timeoutMs: 2000 }});\n'
             '    assert(client.isOpen());\n'
             '    assert(await client.write("ping") == 4);\n'
             '    let response = await client.read(32);\n'
