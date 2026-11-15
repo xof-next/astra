@@ -7,6 +7,7 @@ Astra is a C++17 language runtime with its own syntax, a native command-line int
 ```text
 astra/
 ├── pack.json
+├── release-map.json
 ├── README.md
 ├── scripts/
 │   └── validate-pack.py
@@ -24,7 +25,7 @@ astra/
         └── docs/
 ```
 
-The root `pack.json` file is the authoritative version manifest. Its `new` field selects the default version for `astra install` and `astra update`. Runtime configuration through `astra.conf` is introduced in 1.0.1. Each version retains its own interpreter and language behavior while receiving platform-specific updater maintenance.
+The root `pack.json` file is the authoritative version manifest. Its `new` field selects the default version for `astra install` and `astra update`. The root `release-map.json` maps each registered version to its source directory and GitHub release tag. The validation script checks that both files agree. Runtime configuration through `astra.conf` is introduced in 1.0.1. Each version retains its own interpreter and language behavior while receiving platform-specific updater maintenance.
 
 ## Quick start
 
@@ -65,11 +66,12 @@ astra update
 
 1. Add a new source directory such as `versions/1.1.0/`; do not overwrite an existing version directory.
 2. Add the version, release tag, source path, status, and seven platform asset names to `pack.json`, then set `new` to that version.
-3. Push the complete repository to `main`. The commit includes every historical and current source directory, documentation, tests, manifest, and workflow.
-4. GitHub Actions validates every registered source version and builds the seven assets only for the version selected by `pack.json` → `new`.
-5. The workflow publishes or refreshes that version's GitHub Release and attaches `SHA256SUMS.txt`. Preview tags follow the newest preview source commit; stable source changes require a new version.
-6. Confirm that every matrix job and release upload succeeds before running `astra install` or `astra update`.
+3. Add the same version, tag, and source path to `release-map.json`.
+4. Push the complete repository to `main`. Changes under a version directory rebuild that version. Changes to `pack.json` or `release-map.json` select the affected versions, while changes to the release workflow rebuild all registered versions.
+5. GitHub Actions builds the seven assets for each selected version and publishes or refreshes each version's GitHub Release with `SHA256SUMS.txt`.
+6. Publishing is evaluated per version. A failed platform build prevents replacement of that version's existing release but does not block another version whose seven assets built successfully.
+7. Confirm that the required matrix jobs and release uploads succeed before running `astra install` or `astra update`.
 
 ## Current release status
 
-Version `1.0.1` is the newest source version in the manifest. Version `1.0.0` remains available. The repository keeps the complete source tree for every manifest version. The release workflow builds the version selected by `pack.json` → `new` across Linux x86-64 and ARM64, macOS x86-64 and ARM64, Windows x86-64 and ARM64, and Android ARM64 for Termux. The workflow must complete successfully on each target before its uploaded binary is considered available. The manifest keeps 1.0.1 in preview status until maintainers promote it to stable.
+Version `1.0.1` is the newest source version in the manifest. Version `1.0.0` remains available. The repository keeps the complete source tree for every manifest version. The release workflow builds selected versions across Linux x86-64 and ARM64, macOS x86-64 and ARM64, Windows x86-64 and ARM64, and Android ARM64 for Termux. A version is published only after all seven of its platform assets are available. The manifest keeps 1.0.1 in preview status until maintainers promote it to stable.

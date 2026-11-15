@@ -6,6 +6,7 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 PACK = ROOT / "pack.json"
+RELEASE_MAP = ROOT / "release-map.json"
 SEMVER = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$")
 
 
@@ -18,6 +19,11 @@ def main() -> int:
     if data.get("name") != "astra":
         print("pack.json: name must be 'astra'", file=sys.stderr)
         return 1
+    try:
+        release_map = json.loads(RELEASE_MAP.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"release-map.json: {exc}", file=sys.stderr)
+        return 1
     latest = data.get("new")
     versions = data.get("versions")
     if not isinstance(latest, str) or not SEMVER.fullmatch(latest):
@@ -26,6 +32,18 @@ def main() -> int:
     if not isinstance(versions, dict) or latest not in versions:
         print("pack.json: 'new' must exist in 'versions'", file=sys.stderr)
         return 1
+    mapped = release_map.get("releases") if isinstance(release_map, dict) else None
+    if release_map.get("schema") != 1 or release_map.get("repository") != data.get("repository"):
+        print("release-map.json: schema or repository does not match pack.json", file=sys.stderr)
+        return 1
+    if not isinstance(mapped, dict) or set(mapped) != set(versions):
+        print("release-map.json: every pack.json version must have exactly one release mapping", file=sys.stderr)
+        return 1
+    for version, metadata in versions.items():
+        mapping = mapped.get(version)
+        if not isinstance(mapping, dict) or mapping.get("tag") != metadata.get("tag") or mapping.get("source") != metadata.get("path"):
+            print(f"release-map.json: mapping mismatch for {version}", file=sys.stderr)
+            return 1
     for version, metadata in versions.items():
         if not SEMVER.fullmatch(version) or not isinstance(metadata, dict):
             print(f"pack.json: invalid version entry: {version!r}", file=sys.stderr)

@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "repository": "https://github.com/xof-next/astra",
+  "releases": {
+    "1.0.0": {
+      "tag": "v1.0.0",
+      "source": "versions/1.0.0"
+    },
+    "1.0.1": {
+      "tag": "v1.0.1",
+      "source": "versions/1.0.1"
+    }
+  }
+}

@@ -55,7 +55,15 @@ jobs:
 
           root = Path.cwd()
           pack = json.loads((root / "pack.json").read_text(encoding="utf-8"))
+          release_map = json.loads((root / "release-map.json").read_text(encoding="utf-8"))
           versions = pack["versions"]
+          mappings = release_map["releases"]
+          if set(mappings) != set(versions):
+              raise SystemExit("release-map.json must map every version in pack.json exactly once")
+          for version, metadata in versions.items():
+              mapping = mappings[version]
+              if mapping.get("tag") != metadata.get("tag") or mapping.get("source") != metadata.get("path"):
+                  raise SystemExit(f"release-map.json mismatch for version {version}")
           selected = set()
           event_name = os.environ["EVENT_NAME"]
           requested = os.environ.get("INPUT_VERSION", "").strip().removeprefix("v")
@@ -81,7 +89,18 @@ jobs:
                       if old_pack.get("new") != pack.get("new"):
                           selected.add(pack["new"])
                   else:
-                      selected.add(pack["new"])
+                      selected.update(versions)
+              if "release-map.json" in changed:
+                  previous = subprocess.run(["git", "show", f"{before}:release-map.json"], text=True, capture_output=True)
+                  if previous.returncode == 0:
+                      old_map = json.loads(previous.stdout).get("releases", {})
+                      for version, mapping in mappings.items():
+                          if old_map.get(version) != mapping:
+                              selected.add(version)
+                  else:
+                      selected.update(versions)
+              if ".github/workflows/auto-release.yml" in changed or "scripts/validate-pack.py" in changed:
+                  selected.update(versions)
           else:
               selected.update(versions)
 
@@ -128,6 +147,7 @@ jobs:
     name: Build ${{ matrix.version }} / ${{ matrix.platform }}
     needs: prepare
     if: needs.prepare.outputs.has_versions == 'true'
+    continue-on-error: true
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -301,7 +321,7 @@ jobs:
     needs:
       - prepare
       - build
-    if: needs.prepare.outputs.has_versions == 'true'
+    if: ${{ always() && needs.prepare.result == 'success' && needs.prepare.outputs.has_versions == 'true' }}
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
